@@ -74,6 +74,31 @@
 
 ---
 
+Table of the **player features** we need for each match.
+
+| **Feature**                            | **Description**                                                  |
+| -------------------------------------- | ---------------------------------------------------------------- |
+| **Player Name**                        | Name of the player                                               |
+| **Match ID**                           | Unique match identifier                                          |
+| **Team**                               | Team of the player                                               |
+| **Runs Scored (`runs`)**               | Total runs scored by the player                                  |
+| **Balls Faced (`balls_faced`)**        | Number of balls faced by the player                              |
+| **Fours (`fours`)**                    | Number of fours hit by the player                                |
+| **Sixes (`sixes`)**                    | Number of sixes hit by the player                                |
+| **Strike Rate (`strike_rate`)**        | Batting strike rate (calculated)                                 |
+| **Wickets Taken (`wickets`)**          | Number of wickets taken by the bowler                            |
+| **Maiden Over (`maiden`)**             | Number of overs in which no runs are scored                      |
+| **Overs Bowled (`overs_bowled`)**      | Number of overs bowled by the player                             |
+| **Balls Bowled (`balls_bowled`)**      | Total balls bowled by the player                                 |
+| **Runs Conceded (`runs_conceded`)**    | Runs conceded by the bowler                                      |
+| **Economy Rate (`economy`)**           | Bowling economy rate (calculated)                                |
+| **Catches (`catches`)**                | Number of catches taken by the player                            |
+| **Run Outs (`run_outs`)**              | Number of run outs contributed by the player (if available)      |
+| **Match Outcome (`match_outcome`)**    | Whether the player’s team won or lost (win/loss)                 |
+| **Player Role (Captain/Vice-Captain)** | Whether the player is a captain, vice-captain, or regular player |
+
+---
+
 # Fantasy Points Calculation Algorithm for Live Matches
 
 This algorithm calculates the fantasy points for players during a live match based on the Dream11 Fantasy Points System.
