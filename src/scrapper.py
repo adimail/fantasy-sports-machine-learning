@@ -258,7 +258,7 @@ class Scrapper:
 @click.command()
 @click.option('--start_year', prompt='Start year', type=int, help='Starting year for data collection')
 @click.option('--end_year', prompt='End year', type=int, help='Ending year for data collection')
-def main(start_year, end_year):
+def scrapeData(start_year, end_year):
     """Main entry point: generate time spans, scrape data for all player types, and save to CSV."""
     try:
         current_year = datetime.datetime.now().year
@@ -312,7 +312,7 @@ def main(start_year, end_year):
 
 if __name__ == "__main__":
     try:
-        main()
+        scrapeData()
     except KeyboardInterrupt:
         print(f"\n{Fore.RED}Operation cancelled by user{Style.RESET_ALL}")
         sys.exit(1)
