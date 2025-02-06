@@ -1,0 +1,8 @@
+click==8.1.8
+requests==2.32.3
+DateTime==5.5
+beautifulsoup4==4.13.3
+pandas==2.2.3
+numpy==2.2.2
+tqdm==4.67.1
+colorama==0.4.6

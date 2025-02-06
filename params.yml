@@ -1,0 +1,16 @@
+base:
+  project: Fantacy Sports
+
+data:
+  # Raw data
+  raw_json_folder: odis_json
+  raw_data_csv: data/players.csv
+  raw_maths_csv: data/mathes.csv
+
+  # Player Data
+  player_batsmen_csv: data/players/bat.csv
+  player_bowler_csv: data/players/bowl.csv
+  player_fielder_csv: data/players/field.csv
+
+model:
+  # Model Config
