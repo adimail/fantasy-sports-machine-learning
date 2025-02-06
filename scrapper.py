@@ -21,11 +21,17 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 from colorama import Fore, Style, init
+import yaml
 import sys
 import os
 
 init(autoreset=True)
+with open("config.yaml", "r") as file:
+    config = yaml.safe_load(file)
 
+# This variable is a subset of the team codes found in the query menu’s
+# HTML source, specifically mapping referenced cricket teams to their
+# respective numeric IDs
 TEAM_CODES = {
     "India": "6",
     "Pakistan": "7",
@@ -36,6 +42,15 @@ TEAM_CODES = {
     "Afghanistan": "40",
     "South Africa": "3"
 }
+
+# Base URL for web scrapping
+#
+# Without the User-Agent header, some websites may assume that the request
+# is coming from a bot or automated scraper. This could lead to the request
+# being blocked or flagged as suspicious. By passing a valid User-Agent
+# (e.g., one from a common browser like Chrome)
+# the website will treat the request as coming from a regular browser,
+# which reduces the likelihood of blocking it.
 
 BASE_URL = "https://stats.espncricinfo.com/ci/engine/stats/index.html"
 HEADERS = {
@@ -258,7 +273,7 @@ def main(start_year, end_year):
 
         print(f"{Fore.GREEN}Starting scraping process...{Style.RESET_ALL}")
 
-        output_dir = "output"
+        output_dir = config["data"]["web_scrapper_output"]
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 

@@ -1,11 +1,15 @@
 base:
   project: Fantacy Sports
+  team: Sinister 6
 
 data:
   # Raw data
   raw_json_folder: odis_json
   raw_data_csv: data/players.csv
   raw_maths_csv: data/mathes.csv
+
+  # Web scrapper output
+  web_scrapper_output: output
 
   # Player Data
   player_batsmen_csv: data/players/bat.csv
