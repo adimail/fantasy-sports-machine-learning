@@ -321,4 +321,5 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-data-dev
+data
+test.ipynb

@@ -18,3 +18,153 @@ data:
 
 model:
   # Model Config
+
+# champions_trophy_2025_teams
+teams:
+  - Bangladesh
+  - India
+  - New Zealand
+  - Pakistan
+  - Australia
+  - England
+  - South Africa
+  - Afghanistan
+
+
+# champions_trophy_2025_squads
+squad:
+  Bangladesh:
+    - Najmul Hossain Shanto  # Najmul Hossain Shanto (c)
+    - Nasum Ahmed            # Nasum Ahmed
+    - Taskin Ahmed           # Taskin Ahmed
+    - Jaker Ali              # Jaker Ali (wk)
+    - Parvez Hossain Emon    # Parvez Hossain Emon
+    - Tanzid Hasan           # Tanzid Hasan
+    - Rishad Hossain         # Rishad Hossain
+    - Towhid Hridoy          # Towhid Hridoy
+    - Mahmudullah            # Mahmudullah
+    - Mehidy Hasan Miraz     # Mehidy Hasan Miraz
+    - Mushfiqur Rahim        # Mushfiqur Rahim (wk)
+    - Mustafizur Rahman      # Mustafizur Rahman
+    - Nahid Rana             # Nahid Rana
+    - Tanzim Hasan Sakib     # Tanzim Hasan Sakib
+    - Soumya Sarkar          # Soumya Sarkar
+
+  India:
+    - RG Sharma             # Rohit Sharma (c)
+    - Shubman Gill          # Shubman Gill (vc)
+    - JJ Bumrah             # Jasprit Bumrah
+    - SS Iyer               # Shreyas Iyer
+    - RA Jadeja             # Ravindra Jadeja
+    - Yashasvi Jaiswal      # Yashasvi Jaiswal
+    - V Kohli               # Virat Kohli
+    - HH Pandya             # Hardik Pandya
+    - RR Pant               # Rishabh Pant (wk)
+    - AR Patel              # Axar Patel
+    - KL Rahul              # KL Rahul (wk)
+    - Mohammed Shami        # Mohammed Shami
+    - Arshdeep Singh        # Arshdeep Singh
+    - Washington Sundar     # Washington Sundar
+    - Kuldeep Yadav         # Kuldeep Yadav
+
+  New Zealand:
+    - MJ Santner            # Mitchell Santner (c)
+    - MG Bracewell          # Michael Bracewell
+    - MS Chapman            # Mark Chapman
+    - DP Conway             # Devon Conway (wk)
+    - LH Ferguson           # Lockie Ferguson
+    - MJ Henry              # Matt Henry
+    - TWM Latham            # Tom Latham (wk)
+    - DJ Mitchell           # Daryl Mitchell
+    - GD Phillips           # Glenn Phillips
+    - R Ravindra            # Rachin Ravindra
+    - W O'Rourke            # William ORourke
+    - Ben Sears             # Ben Sears
+    - NG Smith              # Nathan Smith
+    - KS Williamson         # Kane Williamson
+    - WA Young              # Will Young
+
+  Pakistan:
+    - Mohammad Rizwan       # Mohammad Rizwan (c, wk)
+    - Agha Salman           # Salman Ali Agha (vc)
+    - Shaheen Shah Afridi   # Shaheen Afridi
+    - Abrar Ahmed           # Abrar Ahmed
+    - Faheem Ashraf         # Faheem Ashraf
+    - Babar Azam            # Babar Azam
+    - Kamran Ghulam         # Kamran Ghulam
+    - Mohammad Hasnain      # Mohammad Hasnain
+    - Usman Khan            # Usman Khan
+    - Haris Rauf            # Haris Rauf
+    - Khushdil Shah         # Khushdil Shah
+    - Naseem Shah           # Naseem Shah
+    - Saud Shakeel          # Saud Shakeel
+    - Tayyab Tahir          # Tayyab Tahir
+    - Fakhar Zaman          # Fakhar Zaman
+
+  Australia:
+    - PJ Cummins            # Pat Cummins (c)
+    - AT Carey              # Alex Carey (wk)
+    - TM Head               # Travis Head
+    - M Labuschagne         # Marnus Labuschagne
+    - GJ Maxwell            # Glenn Maxwell
+    - MR Marsh              # Mitchell Marsh
+    - MP Stoinis            # Marcus Stoinis
+    - A Zampa               # Adam Zampa
+    - JR Hazlewood          # Josh Hazlewood
+    - MA Starc              # Mitchell Starc
+    - DA Warner             # David Warner
+    - SPD Smith             # Steve Smith
+    - C Green               # Cameron Green
+    - NT Ellis              # Nathan Ellis
+    - AM Hardie             # Aaron Hardie
+
+  England:
+    - JC Buttler            # Jos Buttler (c, wk)
+    - MM Ali                # Moeen Ali
+    - JM Bairstow           # Jonny Bairstow (wk)
+    - HC Brook              # Harry Brook
+    - SM Curran             # Sam Curran
+    - BM Duckett            # Ben Duckett
+    - LS Livingstone        # Liam Livingstone
+    - JN Malan              # Dawid Malan
+    - AU Rashid             # Adil Rashid
+    - JE Root               # Joe Root
+    - JJ Roy                # Jason Roy
+    - PD Salt               # Phil Salt (wk)
+    - CR Woakes             # Chris Woakes
+    - MA Wood               # Mark Wood
+    - RJW Topley            # Reece Topley
+
+  South Africa:
+    - T Bavuma              # Temba Bavuma (c)
+    - Q de Kock             # Quinton de Kock (wk)
+    - AK Markram            # Aiden Markram
+    - HE van der Dussen     # Rassie van der Dussen
+    - DA Miller             # David Miller
+    - H Klaasen             # Heinrich Klaasen (wk)
+    - M Jansen              # Marco Jansen
+    - K Rabada              # Kagiso Rabada
+    - A Nortje              # Anrich Nortje
+    - L Ngidi               # Lungi Ngidi
+    - KA Maharaj            # Keshav Maharaj
+    - T Shamsi              # Tabraiz Shamsi
+    - RR Hendricks          # Reeza Hendricks
+    - AL Phehlukwayo        # Andile Phehlukwayo
+    - D Pretorius           # Dwaine Pretorius
+
+  Afghanistan:
+    - Hashmatullah Shahidi   # Hashmatullah Shahidi (c)
+    - Rahmanullah Gurbaz     # Rahmanullah Gurbaz (wk)
+    - Ibrahim Zadran         # Ibrahim Zadran
+    - Rashid Khan            # Rashid Khan
+    - Mohammad Nabi          # Mohammad Nabi
+    - Najibullah Zadran      # Najibullah Zadran
+    - Azmatullah Omarzai     # Azmatullah Omarzai
+    - Mujeeb Ur Rahman       # Mujeeb Ur Rahman
+    - Fazalhaq Farooqi       # Fazalhaq Farooqi
+    - Naveen-ul-Haq          # Naveen-ul-Haq
+    - Gulbadin Naib          # Gulbadin Naib
+    - Rahmat Shah            # Rahmat Shah
+    - Karim Janat            # Karim Janat
+    - Sharafuddin Ashraf     # Sharafuddin Ashraf
+    - Hazratullah Zazai      # Hazratullah Zazai

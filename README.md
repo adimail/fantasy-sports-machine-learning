@@ -1,5 +1,7 @@
 # Dream11 Fantasy Points System
 
+![Script Preview](script.jpeg)
+
 ## Batting
 
 | Action                                  | Points  | Who Receives the Points |

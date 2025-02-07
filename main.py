@@ -2,6 +2,7 @@ import sys
 import click
 from colorama import Fore, Style, init
 from src.scrapper import scrapeData
+from src.playerform import UpdatePlayerForm
 
 init(autoreset=True)
 
@@ -10,7 +11,7 @@ init(autoreset=True)
 def main(option):
     if option is None:
         option = click.prompt(
-            f"\n{Fore.CYAN}Choose an option:\n1. Scrape ESPNcricinfo data\n2. Preprocess and clean data\n3. Build Team from input.csv\n4. Get Recent Match Data\n5. Full data pipeline\n{Style.RESET_ALL}\n\nEnter your choice",
+            f"\n{Fore.CYAN}Choose an option:\n1. Scrape ESPNcricinfo data\n2. Update player form\n3. Build Team from input.csv\n4. Get Recent Match Data\n5. Full data pipeline\n{Style.RESET_ALL}\n\nEnter your choice",
             type=int
         )
 
@@ -21,6 +22,13 @@ def main(option):
     if option == 1:
         try:
             scrapeData()
+        except KeyboardInterrupt:
+            print(f"\n{Fore.RED}Operation cancelled by user{Style.RESET_ALL}")
+            sys.exit(1)
+
+    if option == 2:
+        try:
+            UpdatePlayerForm()
         except KeyboardInterrupt:
             print(f"\n{Fore.RED}Operation cancelled by user{Style.RESET_ALL}")
             sys.exit(1)
