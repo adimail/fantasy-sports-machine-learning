@@ -76,236 +76,90 @@
 
 ---
 
-Table of the **player features** we need for each match.
+## Algorithm for calculating player form based on recent matches performance
 
-| **Feature**                            | **Description**                                                  |
-| -------------------------------------- | ---------------------------------------------------------------- |
-| **Player Name**                        | Name of the player                                               |
-| **Match ID**                           | Unique match identifier                                          |
-| **Team**                               | Team of the player                                               |
-| **Runs Scored (`runs`)**               | Total runs scored by the player                                  |
-| **Balls Faced (`balls_faced`)**        | Number of balls faced by the player                              |
-| **Fours (`fours`)**                    | Number of fours hit by the player                                |
-| **Sixes (`sixes`)**                    | Number of sixes hit by the player                                |
-| **Strike Rate (`strike_rate`)**        | Batting strike rate (calculated)                                 |
-| **Wickets Taken (`wickets`)**          | Number of wickets taken by the bowler                            |
-| **Maiden Over (`maiden`)**             | Number of overs in which no runs are scored                      |
-| **Overs Bowled (`overs_bowled`)**      | Number of overs bowled by the player                             |
-| **Balls Bowled (`balls_bowled`)**      | Total balls bowled by the player                                 |
-| **Runs Conceded (`runs_conceded`)**    | Runs conceded by the bowler                                      |
-| **Economy Rate (`economy`)**           | Bowling economy rate (calculated)                                |
-| **Catches (`catches`)**                | Number of catches taken by the player                            |
-| **Run Outs (`run_outs`)**              | Number of run outs contributed by the player (if available)      |
-| **Match Outcome (`match_outcome`)**    | Whether the player’s team won or lost (win/loss)                 |
-| **Player Role (Captain/Vice-Captain)** | Whether the player is a captain, vice-captain, or regular player |
+### 1. Exponential Decay Weighting
+
+- **What It Does:**
+  Each match is assigned a weight using an exponential decay function:
+  \[
+  \text{weight} = e^{-\text{decay_rate} \times \text{match_index}}
+  \]
+  Here, the most recent match (with a match index of 0) gets full weight, and older matches receive progressively less importance.
+
+- **Why It’s Recommended:**
+  This method captures the intuition that recent performances are more indicative of a player’s current form. It’s a common statistical technique in time series analysis (often seen in exponential moving averages) that helps to dampen the noise from older data while emphasizing the most current information.
 
 ---
 
-# Fantasy Points Calculation Algorithm for Live Matches
+### 2. Batting Metrics
 
-This algorithm calculates the fantasy points for players during a live match based on the Dream11 Fantasy Points System.
+- **Key Components:**
 
-### 1. **Initialize Variables**
+  - **Weighted Runs:**
+    The average runs scored per match are computed using the decay weights. This reflects the contribution of each match, with recent high scores being more influential.
+  - **Batting Average:**
+    If available, the batting average is also weighted by match recency. This gives an idea of consistency and overall performance.
+  - **Strike Rate:**
+    Derived from weighted runs and balls faced, this shows how quickly a player scores.
+  - **Boundaries (4s and 6s):**
+    These are separately weighted and aggregated because scoring boundaries is a crucial aspect of modern batting.
+  - **Consistency:**
+    Measured by the standard deviation of runs. A lower standard deviation indicates that a player is consistently performing, which is a valued trait.
 
-For each player:
+- **Normalization:**
+  Each metric is normalized against an expected benchmark (for example, a typical run might be set at 50, or a typical strike rate at 100). This converts the raw numbers into a standardized 0–100 scale, making it easier to compare and combine them.
 
-- Batting points: `batting_points = 0`
-- Bowling points: `bowling_points = 0`
-- Fielding points: `fielding_points = 0`
-- Additional points: `additional_points = 0`
-- Total points: `total_points = 0`
+- **Aggregation:**
+  The final batting form score is an aggregate of these normalized metrics with predetermined weights (e.g., giving 40% weight to runs, 20% each to average and strike rate, etc.). Emphasizing runs and boundaries makes sense because they are the most direct indicators of batting impact in the game.
 
-### 2. **Batting Points Calculation**
+---
 
-For each batsman:
+### 3. Bowling Metrics
 
-- **Runs**: Add `+1 point` for every run scored.
+- **Key Components:**
 
-  - `batting_points += runs`
+  - **Wickets:**
+    The number of wickets taken is calculated as a weighted average. Since taking wickets is often the most decisive factor for a bowler, it is given significant weight.
+  - **Bowling Average:**
+    This provides insight into the runs conceded per wicket, which is normalized inversely (i.e., a lower average is better).
+  - **Economy Rate:**
+    Reflects how many runs a bowler concedes per over. A lower economy rate contributes positively to the form score.
+  - **Consistency:**
+    The variability in wickets taken is considered, with lower variability (i.e., more consistent wicket-taking) being preferable.
 
-- **Boundary Bonus**: Add `+4 points` for each boundary.
+- **Normalization & Aggregation:**
+  Benchmarks (like an expected 3 wickets per match or an economy of 6.0) are used to normalize these metrics. The final bowling form score gives extra emphasis (e.g., 50%) to wickets because they are a direct measure of impact, while economy and average receive slightly lower weights.
 
-  - `batting_points += 4 * (number of boundaries)`
+---
 
-- **Six Bonus**: Add `+6 points` for each six.
+### 4. Fielding Metrics
 
-  - `batting_points += 6 * (number of sixes)`
+- **Key Components:**
 
-- **Run Bonuses**:
+  - **Fielding Contributions:**
+    This is the sum of catches, stumpings, and run-outs, all of which are important for a team’s defensive performance.
+  - **Consistency:**
+    Similar to batting and bowling, the variability (standard deviation) of these contributions is taken into account.
 
-  - For each milestone (25, 50, 75, 100, 125, 150 runs), add the corresponding bonus points.
-  - Example:
-    - If runs >= 150: `batting_points += 24` (150 Run Bonus)
-    - If runs >= 125 and <150: `batting_points += 20` (125 Run Bonus)
-    - Continue similarly for other milestones.
+- **Normalization & Aggregation:**
+  The fielding contributions are normalized against a benchmark value (for instance, an expected 3 contributions per match). The final fielding form score is a weighted sum that might lean more heavily on the average contributions, as consistency in fielding can be critical in close games.
 
-- **Dismissal for Duck**: Subtract `-3 points` if the player is dismissed for a duck.
+---
 
-  - If `runs == 0`, `batting_points -= 3`
+### Why Is This Approach Recommended?
 
-- **Strike Rate** (for minimum 20 balls played):
-  - Calculate the strike rate: `strike_rate = (runs / balls) * 100`
-  - Add points based on the strike rate:
-    - Above 140: `batting_points += 6`
-    - Between 120.01 and 140: `batting_points += 4`
-    - Between 100 and 120: `batting_points += 2`
-    - Below 30: `batting_points -= 6`
-    - Continue with other conditions as per the system.
+- **Holistic Evaluation:**
+  By considering multiple metrics (and not just a single statistic), this method provides a well-rounded view of a player's performance in each discipline.
 
-### 3. **Bowling Points Calculation**
+- **Emphasis on Recency:**
+  The exponential decay weighting ensures that a player's current form is highlighted, which is especially important in sports where form can fluctuate significantly over time.
 
-For each bowler:
+- **Normalization:**
+  Converting raw numbers into a standardized scale allows different metrics (which might be measured on entirely different scales) to be compared and aggregated fairly.
 
-- **Dot Balls**: Add `+1 point` for every 3 dot balls bowled.
+- **Customizability:**
+  The use of benchmark values means that this model can be tuned based on the level of play or specific team expectations, making it adaptable to different contexts.
 
-  - `dot_balls = number_of_dot_balls // 3`
-  - `bowling_points += dot_balls`
-
-- **Wickets**: Add `+25 points` for each wicket (excluding run out).
-
-  - `bowling_points += 25 * (number of wickets)`
-
-- **Bonus (LBW/Bowled)**: Add `+8 points` for each LBW or bowled wicket.
-
-  - `bowling_points += 8 * (number of LBW or bowled wickets)`
-
-- **Wicket Bonuses**:
-
-  - Add `+4 points` for 4 wickets, `+8 points` for 5 wickets, `+12 points` for 6 wickets.
-  - Example: `if wickets >= 6: bowling_points += 12`
-
-- **Maiden Over**: Add `+4 points` for each maiden over.
-
-  - `bowling_points += 4 * (number of maiden overs)`
-
-- **Economy Rate** (for minimum 5 overs bowled):
-  - Calculate economy rate: `economy_rate = (runs_conceded / overs_bowled)`
-  - Add points based on the economy rate:
-    - Below 2.5: `bowling_points += 6`
-    - Between 2.5 and 3.49: `bowling_points += 4`
-    - Between 7 and 8: `bowling_points -= 2`
-    - Continue with other conditions as per the system.
-
-### 4. **Fielding Points Calculation**
-
-For each fielder:
-
-- **Catch**: Add `+8 points` for each catch.
-
-  - `fielding_points += 8 * (number of catches)`
-
-- **3 Catch Bonus**: Add `+4 points` if 3 or more catches are taken.
-
-  - If `catches >= 3`, `fielding_points += 4`
-
-- **Stumping**: Add `+12 points` for each stumping by a wicketkeeper.
-
-  - `fielding_points += 12 * (number of stumpings)`
-
-- **Run Out (Direct Hit)**: Add `+12 points` for each run out by direct hit.
-
-  - `fielding_points += 12 * (number of direct hit run outs)`
-
-- **Run Out (Not a Direct Hit)**: Add `+6 points` for each run out that is not a direct hit.
-  - `fielding_points += 6 * (number of run outs without direct hit)`
-
-### 5. **Additional Points**
-
-For each player:
-
-- **Captain Points**: Double the points for the captain.
-
-  - `total_points *= 2` if player is captain
-
-- **Vice-Captain Points**: Multiply the points by 1.5 for vice-captain.
-
-  - `total_points *= 1.5` if player is vice-captain
-
-- **In Announced Lineups**: Add `+4 points` if the player is in the announced lineups.
-
-  - `additional_points += 4`
-
-- **Substitute Players**: Add `+4 points` if the player is a substitute (Concussion, X-Factor, or Impact Player).
-  - `additional_points += 4`
-
-### 6. **Total Points Calculation**
-
-Finally, sum all the points:
-
-- `total_points = batting_points + bowling_points + fielding_points + additional_points`
-
-### 7. **Return Total Points for Each Player**
-
-- Output the `total_points` for each player at the end of the match.
-
-### Pseudo-Code Example
-
-```python
-def calculate_fantasy_points(player_data):
-    total_points = 0
-
-    # Batting Points
-    total_points += player_data['runs'] + (4 * player_data['boundaries']) + (6 * player_data['sixes'])
-    if player_data['runs'] >= 150:
-        total_points += 24
-    elif player_data['runs'] >= 125:
-        total_points += 20
-    elif player_data['runs'] >= 100:
-        total_points += 16
-    elif player_data['runs'] >= 75:
-        total_points += 12
-    elif player_data['runs'] >= 50:
-        total_points += 8
-    elif player_data['runs'] >= 25:
-        total_points += 4
-    if player_data['runs'] == 0:
-        total_points -= 3
-
-    # Strike Rate Points
-    strike_rate = (player_data['runs'] / player_data['balls']) * 100
-    if strike_rate > 140:
-        total_points += 6
-    elif strike_rate >= 120:
-        total_points += 4
-    elif strike_rate >= 100:
-        total_points += 2
-    elif strike_rate <= 30:
-        total_points -= 6
-
-    # Bowling Points
-    total_points += (25 * player_data['wickets']) + (8 * player_data['lbw_bowled'])
-    if player_data['wickets'] >= 6:
-        total_points += 12
-    elif player_data['wickets'] >= 5:
-        total_points += 8
-    elif player_data['wickets'] >= 4:
-        total_points += 4
-
-    # Economy Rate Points
-    economy_rate = player_data['runs_conceded'] / player_data['overs_bowled']
-    if economy_rate < 2.5:
-        total_points += 6
-    elif economy_rate < 3.5:
-        total_points += 4
-    elif economy_rate < 4.5:
-        total_points += 2
-    elif economy_rate > 9:
-        total_points -= 6
-
-    # Fielding Points
-    total_points += (8 * player_data['catches']) + (12 * player_data['stumpings']) + (12 * player_data['run_out_direct_hit']) + (6 * player_data['run_out_not_direct_hit'])
-    if player_data['catches'] >= 3:
-        total_points += 4
-
-    # Additional Points
-    if player_data['captain']:
-        total_points *= 2
-    if player_data['vice_captain']:
-        total_points *= 1.5
-    if player_data['in_announced_lineups']:
-        total_points += 4
-    if player_data['substitute']:
-        total_points += 4
-
-    return total_points
-```
+- **Balanced Weighting:**
+  By assigning higher weights to more impactful metrics (e.g., runs for batting and wickets for bowling), the model aligns well with what most analysts and coaches consider important in evaluating performance.

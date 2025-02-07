@@ -138,6 +138,12 @@ class PlayerForm:
         """
         Calculates recent form scores for batting, bowling, and fielding for each player
         based on their matches in the past `previous_months` months using exponential decay.
+        This updated version gives additional weight to runs and wickets and also factors in
+        the number of fours and sixes for batting, along with more robust metrics for all disciplines.
+
+        The metrics are normalized against expected benchmark values (which can be tuned)
+        and then aggregated with weighted contributions. This heuristic approach attempts
+        to reflect the player's recent performance in batting, bowling, and fielding.
 
         Parameters:
             player_df (pd.DataFrame): DataFrame containing player match performance.
@@ -145,24 +151,46 @@ class PlayerForm:
         Returns:
             pd.DataFrame: Aggregated form scores per player.
         """
+        # Ensure End Date is in datetime format and filter by the cutoff date.
         player_df['End Date'] = pd.to_datetime(player_df['End Date'])
         cutoff_date = pd.to_datetime('today') - pd.DateOffset(months=self.previous_months)
         recent_data = player_df[player_df['End Date'] >= cutoff_date].copy()
 
-        # Sort matches for each player by End Date descending (most recent first).
+        # Sort matches for each player by End Date descending (most recent first) and assign match indices.
         recent_data.sort_values(by=['Player', 'End Date'], ascending=[True, False], inplace=True)
         recent_data['match_index'] = recent_data.groupby('Player').cumcount()
 
         # Compute exponential decay weights (more weight to recent matches).
         recent_data['weight'] = np.exp(-self.decay_rate * recent_data['match_index'])
 
+        # Benchmark values for normalization (these can be adjusted based on the format and level of play).
+        expected_runs = 50.0          # Typical runs per innings.
+        expected_avg = 50.0           # Typical batting average.
+        expected_strike_rate = 100.0    # Typical strike rate.
+        expected_boundaries = 5.0      # Expected combined fours and sixes.
+        expected_batting_std = 20.0    # Benchmark for variability in runs.
+
+        expected_wickets = 3.0         # Expected wickets per match.
+        expected_economy = 6.0         # Typical economy rate.
+        expected_bowl_avg = 30.0       # Expected bowling average.
+        expected_bowling_std = 1.0     # Benchmark for variability in wickets.
+
+        expected_fielding = 3.0        # Expected fielding contributions (catches, stumpings, run-outs).
+        expected_fielding_std = 1.0    # Benchmark for fielding consistency.
+
         player_form_list = []
-        # Convert groupby object to list for tqdm progress display.
+        # Process each player's recent matches with a progress bar.
         grouped = list(recent_data.groupby('Player'))
         for player, group in tqdm(grouped, desc="Calculating form scores", unit="player"):
-            # -----------
+            total_weight = group['weight'].sum()
+
+            # ------------------
             # Batting Metrics
-            # -----------
+            # ------------------
+            # Weighted aggregates
+            weighted_runs = np.average(group['bat runs'].fillna(0), weights=group['weight']) if total_weight > 0 else 0
+            weighted_bf = np.average(group['bat bf'].fillna(0), weights=group['weight']) if total_weight > 0 else 0
+            # Batting average (if available)
             if group['bat ave'].notna().any():
                 batting_average = np.average(
                     group['bat ave'].dropna(),
@@ -170,24 +198,37 @@ class PlayerForm:
                 )
             else:
                 batting_average = 0
-
-            weighted_runs = (np.average(group['bat runs'].fillna(0), weights=group['weight'])
-                             if group['weight'].sum() > 0 else 0)
-            weighted_bf = (np.average(group['bat bf'].fillna(0), weights=group['weight'])
-                           if group['weight'].sum() > 0 else 0)
+            # Strike rate derived from weighted runs and balls faced.
             strike_rate = (weighted_runs / weighted_bf * 100) if weighted_bf > 0 else 0
+            # Boundaries: consider fours and sixes if columns exist, else default to 0.
+            weighted_fours = np.average(group['bat 4s'].fillna(0), weights=group['weight']) if 'bat 4s' in group.columns else 0
+            weighted_sixes = np.average(group['bat 6s'].fillna(0), weights=group['weight']) if 'bat 6s' in group.columns else 0
+            # Consistency: lower standard deviation is better.
+            batting_std = group['bat runs'].std(skipna=True) if len(group) > 1 else 0
 
-            if len(group) > 1:
-                batting_std = group['bat runs'].std(skipna=True)
-            else:
-                batting_std = 0
+            # Normalize metrics to a 0-100 scale.
+            norm_runs = min((weighted_runs / expected_runs) * 100, 100)
+            norm_avg = min((batting_average / expected_avg) * 100, 100)
+            norm_sr = min((strike_rate / expected_strike_rate) * 100, 100)
+            norm_boundaries = min(((weighted_fours + weighted_sixes) / expected_boundaries) * 100, 100)
+            norm_consistency = max(0, 1 - (batting_std / expected_batting_std)) * 100
 
-            batting_form_score = (0.5 * batting_average) + (0.3 * strike_rate) + (0.2 * (1 - batting_std))
+            # Aggregate batting form score with higher weight to runs.
+            batting_form_score = (
+                0.4 * norm_runs +
+                0.2 * norm_avg +
+                0.2 * norm_sr +
+                0.1 * norm_boundaries +
+                0.1 * norm_consistency
+            )
             batting_form_score = np.clip(batting_form_score, 0, 100)
 
-            # -----------
+            # ------------------
             # Bowling Metrics
-            # -----------
+            # ------------------
+            weighted_wickets = np.average(group['bowl wkts'].fillna(0), weights=group['weight']) if total_weight > 0 else 0
+            weighted_bowl_runs = np.average(group['bowl runs'].fillna(0), weights=group['weight']) if total_weight > 0 else 0
+            weighted_overs = np.average(group['bowl overs'].fillna(0), weights=group['weight']) if total_weight > 0 else 0
             if group['bowl ave'].notna().any():
                 bowling_average = np.average(
                     group['bowl ave'].dropna(),
@@ -195,36 +236,35 @@ class PlayerForm:
                 )
             else:
                 bowling_average = 0
+            economy_rate = (weighted_bowl_runs / weighted_overs) if weighted_overs > 0 else 0
+            bowling_std = group['bowl wkts'].std(skipna=True) if len(group) > 1 else 0
 
-            total_wickets = (np.average(group['bowl wkts'].fillna(0), weights=group['weight'])
-                             if group['weight'].sum() > 0 else 0)
-            total_bowl_runs = (np.average(group['bowl runs'].fillna(0), weights=group['weight'])
-                               if group['weight'].sum() > 0 else 0)
-            total_overs = (np.average(group['bowl overs'].fillna(0), weights=group['weight'])
-                           if group['weight'].sum() > 0 else 0)
-            economy_rate = (total_bowl_runs / total_overs) if total_overs > 0 else 0
+            norm_wickets = min((weighted_wickets / expected_wickets) * 100, 100)
+            norm_economy = max(0, 1 - (economy_rate / expected_economy)) * 100
+            norm_bowl_avg = max(0, 1 - (bowling_average / expected_bowl_avg)) * 100
+            norm_bowling_consistency = max(0, 1 - (bowling_std / expected_bowling_std)) * 100
 
-            if len(group) > 1:
-                bowling_std = group['bowl wkts'].std(skipna=True)
-            else:
-                bowling_std = 0
-
-            bowling_form_score = (0.5 * bowling_average) + (0.3 * (1 - economy_rate)) + (0.2 * (1 - bowling_std))
+            # Emphasize wickets more in the bowling score.
+            bowling_form_score = (
+                0.5 * norm_wickets +
+                0.2 * norm_economy +
+                0.2 * norm_bowl_avg +
+                0.1 * norm_bowling_consistency
+            )
             bowling_form_score = np.clip(bowling_form_score, 0, 100)
 
-            # -----------
+            # ------------------
             # Fielding Metrics
-            # -----------
+            # ------------------
+            # Sum fielding contributions from catches, stumpings, and run-outs.
             fielding_contrib = group[['field ct', 'field st', 'field ct wk']].fillna(0).sum(axis=1)
-            fielding_average = (np.average(fielding_contrib, weights=group['weight'])
-                                if group['weight'].sum() > 0 else 0)
+            fielding_average = np.average(fielding_contrib, weights=group['weight']) if total_weight > 0 else 0
+            fielding_std = fielding_contrib.std() if len(fielding_contrib) > 1 else 0
 
-            if len(fielding_contrib) > 1:
-                fielding_std = fielding_contrib.std()
-            else:
-                fielding_std = 0
+            norm_fielding = min((fielding_average / expected_fielding) * 100, 100)
+            norm_fielding_consistency = max(0, 1 - (fielding_std / expected_fielding_std)) * 100
 
-            fielding_form_score = (0.6 * fielding_average) + (0.4 * (1 - fielding_std))
+            fielding_form_score = (0.7 * norm_fielding + 0.3 * norm_fielding_consistency)
             fielding_form_score = np.clip(fielding_form_score, 0, 100)
 
             player_form_list.append({
