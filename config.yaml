@@ -16,8 +16,67 @@ data:
   player_bowler_csv: data/players/bowl.csv
   player_fielder_csv: data/players/field.csv
 
+common:
+  data_paths: &common_data_paths
+    batting: output/batting_data.csv
+    bowling: output/bowling_data.csv
+    fielding: output/fielding_data.csv
+    form: output/recent_player_form.csv
+    roster: input.csv
+
+  xgb_params: &common_xgb_params
+    n_estimators: 200
+    max_depth: 5
+    learning_rate: 0.1
+
+  team_rules: &common_team_rules
+    salary_cap: 1000000
+    required_roles:
+      Batsman: [3, 5]
+      Bowler: [3, 5]
+      AllRounder: [1, 3]
+      WicketKeeper: [1, 1]
+
 model:
-  # Model Config
+  PuLP:
+    data_paths: *common_data_paths
+    model_params:
+      n_estimators: 100
+      random_state: 42
+    feature_columns:
+      - Batting Fantasy
+      - Bowling Fantasy
+      - Fielding Fantasy
+      - Batting Form
+      - Bowling Form
+      - Fielding Form
+    team_rules:
+      min_batsmen: 3
+      min_bowlers: 3
+      max_players_per_team: 7
+
+  composite:
+    data_paths: *common_data_paths
+    scoring_weights:
+      historical: 0.5
+      form: 0.5
+
+  optimization_config:
+    data_paths: *common_data_paths
+    feature_columns:
+      numeric: ['Batting_Avg', 'Bowling_Econ', 'Recent_Form']
+      categorical: ['Role', 'Venue_Type', 'Opposition_Strength']
+    team_rules: *common_team_rules
+    xgb_params: *common_xgb_params
+
+  xgboost:
+    data_paths: *common_data_paths
+    feature_columns:
+      numeric: []
+      categorical: [Role, Venue_Type, Opposition_Strength]
+    team_rules: *common_team_rules
+    xgb_params: *common_xgb_params
+
 
 # champions_trophy_2025_teams
 teams:

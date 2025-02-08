@@ -77,10 +77,13 @@ class PlayerForm:
         df = bowling_renamed.merge(batting_renamed, on=self.key_cols, how='outer')
         df = df.merge(fielding_renamed, on=self.key_cols, how='outer')
 
-        # Convert date columns to datetime objects.
         try:
             df['Start Date'] = pd.to_datetime(df['Start Date'])
             df['End Date'] = pd.to_datetime(df['End Date'])
+            batting.to_csv(self.batting_file)
+            bowling.to_csv(self.bowling_file)
+            fielding.to_csv(self.fielding_file)
+            print("Updated player files")
         except Exception as e:
             print(Fore.RED + f"Error converting date columns: {e}")
             sys.exit(1)
