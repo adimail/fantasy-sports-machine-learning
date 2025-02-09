@@ -12,20 +12,14 @@ import sys
 import pandas as pd
 import numpy as np
 import yaml
-from tqdm import tqdm
+from scipy.stats import norm
 from colorama import Fore, init
 
 init(autoreset=True)
 
 
 class PlayerForm:
-    def __init__(self,
-                 bowling_file="output/bowling_data.csv",
-                 batting_file="output/batting_data.csv",
-                 fielding_file="output/fielding_data.csv",
-                 config_file="config.yaml",
-                 previous_months=500,
-                 decay_rate=0.1):
+    def __init__(self):
         """
         Initializes the PlayerForm with file paths and parameters.
 
@@ -37,12 +31,22 @@ class PlayerForm:
             previous_months (int): Time window in months for recent matches.
             decay_rate (float): Decay rate for weighting recent match performances.
         """
-        self.bowling_file = bowling_file
-        self.batting_file = batting_file
-        self.fielding_file = fielding_file
-        self.config_file = config_file
-        self.previous_months = previous_months
-        self.decay_rate = decay_rate
+
+        try:
+            with open("config.yaml", 'r') as stream:
+                config = yaml.safe_load(stream)
+        except Exception as e:
+            print(Fore.RED + f"Error reading YAML config file: {e}")
+            sys.exit(1)
+
+        self.config = config
+
+        self.bowling_file = config['player_form']['bowling_file']
+        self.batting_file = config['player_form']['batting_file']
+        self.fielding_file = config['player_form']['fielding_file']
+        self.output_file = config['player_form']['output_file']
+        self.previous_months = config['player_form']['previous_months']
+        self.decay_rate = config['player_form']['decay_rate']
         self.key_cols = ['Player', 'Team', 'Start Date', 'End Date', "Mat"]
 
     def load_data(self):
@@ -80,9 +84,9 @@ class PlayerForm:
         try:
             df['Start Date'] = pd.to_datetime(df['Start Date'])
             df['End Date'] = pd.to_datetime(df['End Date'])
-            batting.to_csv(self.batting_file)
-            bowling.to_csv(self.bowling_file)
-            fielding.to_csv(self.fielding_file)
+            batting.to_csv(self.batting_file, index=False)
+            bowling.to_csv(self.bowling_file, index=False)
+            fielding.to_csv(self.fielding_file, index=False)
             print("Updated player files")
         except Exception as e:
             print(Fore.RED + f"Error converting date columns: {e}")
@@ -102,16 +106,9 @@ class PlayerForm:
         Returns:
             pd.DataFrame: The filtered DataFrame containing only valid players.
         """
-        try:
-            with open(self.config_file, 'r') as stream:
-                data = yaml.safe_load(stream)
-        except Exception as e:
-            print(Fore.RED + f"Error reading YAML config file: {e}")
-            sys.exit(1)
-
         player_to_team = {}
         valid_players = []
-        squad = data.get('squad', {})
+        squad = self.config.get('squad', {})
 
         for team, players in squad.items():
             if players:
@@ -133,151 +130,150 @@ class PlayerForm:
             print(Fore.GREEN + "All players from the YAML file are present in the DataFrame.")
 
         print(f"\nExtracted players: {len(df_players)} / {len(yaml_players)}")
-        print(f"Missing players: {len(missing_players)}")
+        print(f"Missing players: {len(missing_players)}\n")
 
         return filtered_df
 
     def calculate_form(self, player_df):
         """
         Calculates recent form scores for batting, bowling, and fielding for each player
-        based on their matches in the past `previous_months` months using exponential decay.
-        This updated version gives additional weight to runs and wickets and also factors in
-        the number of fours and sixes for batting, along with more robust metrics for all disciplines.
+        based on their matches in the past `previous_months` months using exponential decay weights
+        and normalization based on the distribution of performance among players.
 
-        The metrics are normalized against expected benchmark values (which can be tuned)
-        and then aggregated with weighted contributions. This heuristic approach attempts
-        to reflect the player's recent performance in batting, bowling, and fielding.
+        This approach computes an exponentially weighted moving average (EWMA) for each key metric,
+        then normalizes each player's EWMA to a 0-100 score via the CDF of the standard normal distribution,
+        using the global mean and standard deviation across all players. Finally, a composite score is computed
+        for batting, bowling, and fielding via a weighted sum.
 
         Parameters:
             player_df (pd.DataFrame): DataFrame containing player match performance.
 
         Returns:
-            pd.DataFrame: Aggregated form scores per player.
+            pd.DataFrame: Aggregated form scores per player with columns 'Player', 'Batting Form',
+                          'Bowling Form', and 'Fielding Form'.
         """
         # Ensure End Date is in datetime format and filter by the cutoff date.
         player_df['End Date'] = pd.to_datetime(player_df['End Date'])
         cutoff_date = pd.to_datetime('today') - pd.DateOffset(months=self.previous_months)
         recent_data = player_df[player_df['End Date'] >= cutoff_date].copy()
 
-        # Sort matches for each player by End Date descending (most recent first) and assign match indices.
+        # Sort matches for each player by End Date descending and assign match indices.
         recent_data.sort_values(by=['Player', 'End Date'], ascending=[True, False], inplace=True)
         recent_data['match_index'] = recent_data.groupby('Player').cumcount()
 
         # Compute exponential decay weights (more weight to recent matches).
         recent_data['weight'] = np.exp(-self.decay_rate * recent_data['match_index'])
 
-        # Benchmark values for normalization (these can be adjusted based on the format and level of play).
-        expected_runs = 50.0          # Typical runs per innings.
-        expected_avg = 50.0           # Typical batting average.
-        expected_strike_rate = 100.0    # Typical strike rate.
-        expected_boundaries = 5.0      # Expected combined fours and sixes.
-        expected_batting_std = 20.0    # Benchmark for variability in runs.
+        # Helper function: compute the EWMA for a given column for each player.
+        def compute_ewma(g, col):
+            return np.average(g[col].fillna(0), weights=g['weight'])
 
-        expected_wickets = 3.0         # Expected wickets per match.
-        expected_economy = 6.0         # Typical economy rate.
-        expected_bowl_avg = 30.0       # Expected bowling average.
-        expected_bowling_std = 1.0     # Benchmark for variability in wickets.
+        # ------------------
+        # Batting Form
+        # ------------------
+        batting_metrics = {}
+        for metric in ['bat runs', 'bat bf', 'bat sr', 'bat ave', 'bat 4s', 'bat 6s']:
+            batting_metrics[metric] = recent_data.groupby('Player', group_keys=False).apply(
+                    lambda g: compute_ewma(g, metric), include_groups=False
+            )
+        batting_df = pd.DataFrame(batting_metrics).reset_index()
 
-        expected_fielding = 3.0        # Expected fielding contributions (catches, stumpings, run-outs).
-        expected_fielding_std = 1.0    # Benchmark for fielding consistency.
+        # Normalize each metric based on the global distribution.
+        def normalize_series(series):
+            mean_val = series.mean()
+            std_val = series.std()
+            if std_val == 0:
+                return pd.Series(100, index=series.index)
+            return series.apply(lambda x: norm.cdf((x - mean_val) / std_val) * 100)
 
-        player_form_list = []
-        # Process each player's recent matches with a progress bar.
-        grouped = list(recent_data.groupby('Player'))
-        for player, group in tqdm(grouped, desc="Calculating form scores", unit="player"):
-            total_weight = group['weight'].sum()
+        batting_norm = {}
+        for col in ['bat runs', 'bat ave', 'bat sr', 'bat 4s', 'bat 6s']:
+            batting_norm[col] = normalize_series(batting_df[col])
 
-            # ------------------
-            # Batting Metrics
-            # ------------------
-            # Weighted aggregates
-            weighted_runs = np.average(group['bat runs'].fillna(0), weights=group['weight']) if total_weight > 0 else 0
-            weighted_bf = np.average(group['bat bf'].fillna(0), weights=group['weight']) if total_weight > 0 else 0
-            # Batting average (if available)
-            if group['bat ave'].notna().any():
-                batting_average = np.average(
-                    group['bat ave'].dropna(),
-                    weights=group.loc[group['bat ave'].notna(), 'weight']
+        batting_df['Batting Form'] = (
+            0.4 * batting_norm['bat runs'] +
+            0.2 * batting_norm['bat ave'] +
+            0.2 * batting_norm['bat sr'] +
+            0.1 * batting_norm['bat 4s'] +
+            0.1 * batting_norm['bat 6s']
+        )
+
+        # ------------------
+        # Bowling Form
+        # ------------------
+        bowling_metrics = {}
+        for metric in ['bowl wkts', 'bowl runs', 'bowl econ', 'bowl overs', 'bowl ave']:
+            bowling_metrics[metric] = recent_data.groupby('Player', group_keys=False).apply(
+                lambda g: compute_ewma(g, metric), include_groups=False
+            )
+        bowling_df = pd.DataFrame(bowling_metrics).reset_index()
+
+        bowling_norm = {}
+        bowling_norm['bowl wkts'] = normalize_series(bowling_df['bowl wkts'])
+        bowling_norm['bowl ave'] = 100 - normalize_series(bowling_df['bowl ave'])
+        bowling_norm['bowl econ'] = 100 - normalize_series(bowling_df['bowl econ'])
+
+        bowling_df['Bowling Form'] = (
+            0.65 * bowling_norm['bowl wkts'] +
+            0.15 * bowling_norm['bowl ave'] +
+            0.20 * bowling_norm['bowl econ']
+        )
+
+        # ------------------
+        # Fielding Form
+        # ------------------
+        fielding_metrics = {}
+        for metric in ['field ct', 'field st', 'field ct wk']:
+            fielding_metrics[metric] = recent_data.groupby('Player', group_keys=False).apply(
+                    lambda g: compute_ewma(g, metric), include_groups=False
+            )
+        fielding_df = pd.DataFrame(fielding_metrics).reset_index()
+
+        fielding_norm = {}
+        for col in ['field ct', 'field st', 'field ct wk']:
+            fielding_norm[col] = normalize_series(fielding_df[col])
+
+        fielding_df['Fielding Form'] = (
+            0.5 * fielding_norm['field ct'] +
+            0.3 * fielding_norm['field st'] +
+            0.2 * fielding_norm['field ct wk']
+        )
+
+        form_df = batting_df[['Player', 'Batting Form']].merge(
+            bowling_df[['Player', 'Bowling Form']], on='Player', how='outer'
+        ).merge(
+            fielding_df[['Player', 'Fielding Form']], on='Player', how='outer'
+        )
+
+        player_months = recent_data.groupby(['Player', 'Team'])['End Date'].agg(
+            lambda x: (
+                (x.max() - x.min()).days // 30,
+                x.max(),  # Latest date
+                x.min()   # Oldest date
+            )
+        ).reset_index()
+        player_months.rename(columns={'End Date': 'Months of Data'}, inplace=True)
+        player_months[['Months of Data', 'Latest Date', 'Oldest Date']] = pd.DataFrame(
+            player_months['Months of Data'].tolist(), index=player_months.index
+        )
+        player_months = player_months.sort_values(by='Months of Data', ascending=True)
+        for _, row in player_months.iterrows():
+            if row['Months of Data'] < 3:
+                print(
+                    f"{Fore.YELLOW}{row['Months of Data']}\t"
+                    f"{row['Oldest Date'].strftime('%b %y')} - "
+                    f"{row['Latest Date'].strftime('%b %y')} \t"
+                    f"{row['Player']} ({row['Team']})"
                 )
             else:
-                batting_average = 0
-            # Strike rate derived from weighted runs and balls faced.
-            strike_rate = (weighted_runs / weighted_bf * 100) if weighted_bf > 0 else 0
-            # Boundaries: consider fours and sixes if columns exist, else default to 0.
-            weighted_fours = np.average(group['bat 4s'].fillna(0), weights=group['weight']) if 'bat 4s' in group.columns else 0
-            weighted_sixes = np.average(group['bat 6s'].fillna(0), weights=group['weight']) if 'bat 6s' in group.columns else 0
-            # Consistency: lower standard deviation is better.
-            batting_std = group['bat runs'].std(skipna=True) if len(group) > 1 else 0
-
-            # Normalize metrics to a 0-100 scale.
-            norm_runs = min((weighted_runs / expected_runs) * 100, 100)
-            norm_avg = min((batting_average / expected_avg) * 100, 100)
-            norm_sr = min((strike_rate / expected_strike_rate) * 100, 100)
-            norm_boundaries = min(((weighted_fours + weighted_sixes) / expected_boundaries) * 100, 100)
-            norm_consistency = max(0, 1 - (batting_std / expected_batting_std)) * 100
-
-            # Aggregate batting form score with higher weight to runs.
-            batting_form_score = (
-                0.4 * norm_runs +
-                0.2 * norm_avg +
-                0.2 * norm_sr +
-                0.1 * norm_boundaries +
-                0.1 * norm_consistency
-            )
-            batting_form_score = np.clip(batting_form_score, 0, 100)
-
-            # ------------------
-            # Bowling Metrics
-            # ------------------
-            weighted_wickets = np.average(group['bowl wkts'].fillna(0), weights=group['weight']) if total_weight > 0 else 0
-            weighted_bowl_runs = np.average(group['bowl runs'].fillna(0), weights=group['weight']) if total_weight > 0 else 0
-            weighted_overs = np.average(group['bowl overs'].fillna(0), weights=group['weight']) if total_weight > 0 else 0
-            if group['bowl ave'].notna().any():
-                bowling_average = np.average(
-                    group['bowl ave'].dropna(),
-                    weights=group.loc[group['bowl ave'].notna(), 'weight']
+                print(
+                    f"{row['Months of Data']}\t"
+                    f"{row['Oldest Date'].strftime('%b %y')} - "
+                    f"{row['Latest Date'].strftime('%b %y')} \t"
+                    f"{row['Player']} ({row['Team']})"
                 )
-            else:
-                bowling_average = 0
-            economy_rate = (weighted_bowl_runs / weighted_overs) if weighted_overs > 0 else 0
-            bowling_std = group['bowl wkts'].std(skipna=True) if len(group) > 1 else 0
 
-            norm_wickets = min((weighted_wickets / expected_wickets) * 100, 100)
-            norm_economy = max(0, 1 - (economy_rate / expected_economy)) * 100
-            norm_bowl_avg = max(0, 1 - (bowling_average / expected_bowl_avg)) * 100
-            norm_bowling_consistency = max(0, 1 - (bowling_std / expected_bowling_std)) * 100
-
-            # Emphasize wickets more in the bowling score.
-            bowling_form_score = (
-                0.5 * norm_wickets +
-                0.2 * norm_economy +
-                0.2 * norm_bowl_avg +
-                0.1 * norm_bowling_consistency
-            )
-            bowling_form_score = np.clip(bowling_form_score, 0, 100)
-
-            # ------------------
-            # Fielding Metrics
-            # ------------------
-            # Sum fielding contributions from catches, stumpings, and run-outs.
-            fielding_contrib = group[['field ct', 'field st', 'field ct wk']].fillna(0).sum(axis=1)
-            fielding_average = np.average(fielding_contrib, weights=group['weight']) if total_weight > 0 else 0
-            fielding_std = fielding_contrib.std() if len(fielding_contrib) > 1 else 0
-
-            norm_fielding = min((fielding_average / expected_fielding) * 100, 100)
-            norm_fielding_consistency = max(0, 1 - (fielding_std / expected_fielding_std)) * 100
-
-            fielding_form_score = (0.7 * norm_fielding + 0.3 * norm_fielding_consistency)
-            fielding_form_score = np.clip(fielding_form_score, 0, 100)
-
-            player_form_list.append({
-                'Player': player,
-                'Batting Form': batting_form_score,
-                'Bowling Form': bowling_form_score,
-                'Fielding Form': fielding_form_score
-            })
-
-        return pd.DataFrame(player_form_list)
+        return form_df
 
     def run(self):
         """
@@ -290,7 +286,7 @@ class PlayerForm:
         df = self.load_data()
         filtered_df = self.filter_players_by_squad(df)
         form_scores = self.calculate_form(filtered_df)
-        print(Fore.GREEN + "Form scores calculated successfully:")
+        print(Fore.GREEN + "\n\nForm scores calculated successfully")
         form_scores.to_csv("output/recent_player_form.csv", index=False)
 
 

@@ -11,17 +11,20 @@ data:
   # Web scrapper output
   web_scrapper_output: output
 
-  # Player Data
-  player_batsmen_csv: data/players/bat.csv
-  player_bowler_csv: data/players/bowl.csv
-  player_fielder_csv: data/players/field.csv
+player_form:
+  batting_file: "output/batting_data.csv"
+  bowling_file: "output/bowling_data.csv"
+  fielding_file: "output/fielding_data.csv"
+  output_file: "output/recent_player_form.csv"
+  previous_months: 20
+  decay_rate: 0.1
 
 common:
   data_paths: &common_data_paths
-    batting: output/batting_data.csv
-    bowling: output/bowling_data.csv
-    fielding: output/fielding_data.csv
-    form: output/recent_player_form.csv
+    batting: data/batting_data.csv
+    bowling: data/bowling_data.csv
+    fielding: data/fielding_data.csv
+    form: data/recent_player_form.csv
     roster: input.csv
 
   xgb_params: &common_xgb_params
@@ -42,7 +45,10 @@ model:
     data_paths: *common_data_paths
     model_params:
       n_estimators: 100
+      max_depth: 5
+      learning_rate: 0.1
       random_state: 42
+      verbosity: 2
     feature_columns:
       - Batting Fantasy
       - Bowling Fantasy
@@ -50,10 +56,22 @@ model:
       - Batting Form
       - Bowling Form
       - Fielding Form
+      - Variability
+    param_grid:
+      n_estimators: [50, 100, 150]
+      max_depth: [3, 5, 7]
+      learning_rate: [0.05, 0.1]
     team_rules:
-      min_batsmen: 3
-      min_bowlers: 3
+      min_batsmen: 4
+      min_bowlers: 4
+      min_wicketkeepers: 1
+      min_allrounders: 2
       max_players_per_team: 7
+      risk_weight: 0.1
+      synergy_weight: 2.0
+    do_tuning: true
+    do_explain: true
+    do_backtest: true
 
   composite:
     data_paths: *common_data_paths
