@@ -70,7 +70,7 @@ model:
       risk_weight: 0.1
       synergy_weight: 2.0
     do_tuning: true
-    do_explain: true
+    do_explain: false
     do_backtest: true
 
   composite:

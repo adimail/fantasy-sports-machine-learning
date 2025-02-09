@@ -223,12 +223,42 @@ class FantasyTeamOptimizer:
         return self.data[discipline].groupby('Player')['Fantasy'].mean().reset_index().rename(columns={'Fantasy': col_name})
 
     def _get_current_players(self):
-        """Process current roster data."""
+        """Process current roster data and normalize specified columns.
+
+        Normalized columns:
+          - Batting Fantasy
+          - Bowling Fantasy
+          - Fielding Fantasy
+          - Batting Form
+          - Bowling Form
+          - Fielding Form
+          - Total Fantasy
+          - Variability
+        """
         print("Processing current roster data...")
         roster = self.data['roster'].rename(columns={'Player Name': 'Player'})
         merged = roster.merge(self.features, on='Player', how='inner')
-        print("Current players obtained:\n\n", merged, end="\n\n")
+
+        columns_to_normalize = [
+            'Batting Fantasy', 'Bowling Fantasy', 'Fielding Fantasy',
+            'Batting Form', 'Bowling Form', 'Fielding Form',
+            'Total Fantasy', 'Variability'
+        ]
+
+        for col in columns_to_normalize:
+            if col in merged.columns:
+                col_min = merged[col].min()
+                col_max = merged[col].max()
+                if col_max != col_min:
+                    merged[col] = (merged[col] - col_min) / (col_max - col_min)
+                else:
+                    merged[col] = 0.0
+            else:
+                print(f"Warning: Column '{col}' not found in the merged DataFrame.")
+
+        print("Current players obtained with normalized values:\n\n", merged, end="\n\n")
         return merged
+
 
     @staticmethod
     def _calculate_batting_points(row):
