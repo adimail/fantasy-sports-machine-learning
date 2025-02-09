@@ -321,6 +321,4 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-data
 test.ipynb
-playing11-*

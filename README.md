@@ -2,6 +2,125 @@
 
 ![Script Preview](script.jpeg)
 
+<video controls>
+  <source src="demo.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+
+# How to Use
+
+This repository contains scripts for scraping data from ESPN, pre-processing that data, and calculating recent player form. The processed data is saved in the `output` directory. After scraping, copy the contents from `output` to the `data` directory before running the model scripts.
+
+The algorithm for calculating recent player form is located at `src/playerform.py`
+
+> **Note:** All scripts are located in the `src` directory. Currently, there are six variations of model testing scripts (prefixed with `playing11-`). Once the best model is selected, its core will be migrated to `buildteam.py` in the project root.
+
+## Cloning the Repository and Setting Up the Environment
+
+Follow these steps to get started:
+
+1. **Fork and Clone the Repository:**
+
+   If you plan to contribute to this project, first fork the repository into your GitHub account. If you have collaborator access, you can clone the repository directly. Remember to create a new branch for your changes before submitting a pull request.
+
+   Forked repo:
+
+   ```bash
+   git clone https://github.com/yourusername/fantasy-sports-machine-learning.git
+   cd fantasy-sports-machine-learning
+   ```
+
+   Main Repo:
+
+   ```bash
+   git clone https://github.com/adimail/fantasy-sports-machine-learning.git
+   cd fantasy-sports-machine-learning
+   ```
+
+2. **Create a Virtual Environment:**
+
+   It is recommended to use a virtual environment to manage your project dependencies. Create and activate a virtual environment using the following commands:
+
+   - **For macOS/Linux:**
+
+     ```bash
+     python3 -m venv venv
+     source venv/bin/activate
+     ```
+
+   - **For Windows:**
+
+     ```bash
+     python -m venv venv
+     venv\Scripts\activate
+     ```
+
+3. **Install Dependencies:**
+
+   With the virtual environment activated, install the necessary packages using:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Branching and Pull Requests:**
+
+   To keep the project organized and make the review process smoother, follow these guidelines:
+
+   - **Create a New Branch:**
+     Before starting work on a new feature or bug fix, create a new branch with a descriptive name (e.g., `feature/user-authentication` or `bugfix/fix-data-scraper`).
+
+     ```bash
+     git checkout -b your-feature-branch
+     ```
+
+   - **Commit Your Changes:**
+     After making changes, commit them with a clear and concise commit message.
+
+     ```bash
+     git add .
+     git commit -m "Description of your changes"
+     ```
+
+   - **Push the Branch and Open a Pull Request:**
+     Push your branch to your fork or the main repository (if you have push access), then open a pull request to merge your changes into the main branch. Ensure your pull request includes a description of the changes and references any relevant issues.
+
+     ```bash
+     git push origin your-feature-branch
+     ```
+
+     Finally, navigate to the repository on GitHub and create a pull request.
+
+## Running the Scripts
+
+Once your environment is set up, you can run the scripts from the project root:
+
+1. **Data Scraping and Pre-processing:**
+
+   Execute the scraping script:
+
+   ```bash
+   python src/scrapper.py
+   ```
+
+   Then copy the processed data from `output` to `data`:
+
+   ```bash
+   cp -r output/* data/
+   ```
+
+2. **Model Execution:**
+
+   Run the desired model script (for example, `playing11-PuLP.py`):
+
+   ```bash
+   python src/playing11-PuLP.py
+   ```
+
+> **Reminder:** The machine learning model configurations (such as the number of previous months to consider, XGBoost parameters, and data source directories) are specified in the `config.yaml` file located in the root directory.
+
+# Scoring system
+
 ## Batting
 
 | Action                                  | Points  | Who Receives the Points |
@@ -73,93 +192,3 @@
 
 - **Strike Rate** and **Economy Rate** points are not awarded for players in _The Hundred_.
 - **Substitute Players**: If they replace an announced player, they get 0 points for being announced but earn points if they play.
-
----
-
-## Algorithm for calculating player form based on recent matches performance
-
-### 1. Exponential Decay Weighting
-
-- **What It Does:**
-  Each match is assigned a weight using an exponential decay function:
-  \[
-  \text{weight} = e^{-\text{decay_rate} \times \text{match_index}}
-  \]
-  Here, the most recent match (with a match index of 0) gets full weight, and older matches receive progressively less importance.
-
-- **Why It’s Recommended:**
-  This method captures the intuition that recent performances are more indicative of a player’s current form. It’s a common statistical technique in time series analysis (often seen in exponential moving averages) that helps to dampen the noise from older data while emphasizing the most current information.
-
----
-
-### 2. Batting Metrics
-
-- **Key Components:**
-
-  - **Weighted Runs:**
-    The average runs scored per match are computed using the decay weights. This reflects the contribution of each match, with recent high scores being more influential.
-  - **Batting Average:**
-    If available, the batting average is also weighted by match recency. This gives an idea of consistency and overall performance.
-  - **Strike Rate:**
-    Derived from weighted runs and balls faced, this shows how quickly a player scores.
-  - **Boundaries (4s and 6s):**
-    These are separately weighted and aggregated because scoring boundaries is a crucial aspect of modern batting.
-  - **Consistency:**
-    Measured by the standard deviation of runs. A lower standard deviation indicates that a player is consistently performing, which is a valued trait.
-
-- **Normalization:**
-  Each metric is normalized against an expected benchmark (for example, a typical run might be set at 50, or a typical strike rate at 100). This converts the raw numbers into a standardized 0–100 scale, making it easier to compare and combine them.
-
-- **Aggregation:**
-  The final batting form score is an aggregate of these normalized metrics with predetermined weights (e.g., giving 40% weight to runs, 20% each to average and strike rate, etc.). Emphasizing runs and boundaries makes sense because they are the most direct indicators of batting impact in the game.
-
----
-
-### 3. Bowling Metrics
-
-- **Key Components:**
-
-  - **Wickets:**
-    The number of wickets taken is calculated as a weighted average. Since taking wickets is often the most decisive factor for a bowler, it is given significant weight.
-  - **Bowling Average:**
-    This provides insight into the runs conceded per wicket, which is normalized inversely (i.e., a lower average is better).
-  - **Economy Rate:**
-    Reflects how many runs a bowler concedes per over. A lower economy rate contributes positively to the form score.
-  - **Consistency:**
-    The variability in wickets taken is considered, with lower variability (i.e., more consistent wicket-taking) being preferable.
-
-- **Normalization & Aggregation:**
-  Benchmarks (like an expected 3 wickets per match or an economy of 6.0) are used to normalize these metrics. The final bowling form score gives extra emphasis (e.g., 50%) to wickets because they are a direct measure of impact, while economy and average receive slightly lower weights.
-
----
-
-### 4. Fielding Metrics
-
-- **Key Components:**
-
-  - **Fielding Contributions:**
-    This is the sum of catches, stumpings, and run-outs, all of which are important for a team’s defensive performance.
-  - **Consistency:**
-    Similar to batting and bowling, the variability (standard deviation) of these contributions is taken into account.
-
-- **Normalization & Aggregation:**
-  The fielding contributions are normalized against a benchmark value (for instance, an expected 3 contributions per match). The final fielding form score is a weighted sum that might lean more heavily on the average contributions, as consistency in fielding can be critical in close games.
-
----
-
-### Why Is This Approach Recommended?
-
-- **Holistic Evaluation:**
-  By considering multiple metrics (and not just a single statistic), this method provides a well-rounded view of a player's performance in each discipline.
-
-- **Emphasis on Recency:**
-  The exponential decay weighting ensures that a player's current form is highlighted, which is especially important in sports where form can fluctuate significantly over time.
-
-- **Normalization:**
-  Converting raw numbers into a standardized scale allows different metrics (which might be measured on entirely different scales) to be compared and aggregated fairly.
-
-- **Customizability:**
-  The use of benchmark values means that this model can be tuned based on the level of play or specific team expectations, making it adaptable to different contexts.
-
-- **Balanced Weighting:**
-  By assigning higher weights to more impactful metrics (e.g., runs for batting and wickets for bowling), the model aligns well with what most analysts and coaches consider important in evaluating performance.
