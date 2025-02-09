@@ -70,7 +70,7 @@ model:
       risk_weight: 0.1
       synergy_weight: 2.0
     do_tuning: true
-    do_explain: false
+    do_explain: true
     do_backtest: true
 
   composite:
@@ -189,32 +189,31 @@ squad:
     - A Zampa               # Adam Zampa
     - JR Hazlewood          # Josh Hazlewood
     - MA Starc              # Mitchell Starc
-    - DA Warner             # David Warner
     - SPD Smith             # Steve Smith
-    - C Green               # Cameron Green
     - NT Ellis              # Nathan Ellis
     - AM Hardie             # Aaron Hardie
+    - JP Inglis             # Josh Inglis(wc)
+    - MW Short              # Matthew Short
 
   England:
     - JC Buttler            # Jos Buttler (c, wk)
-    - MM Ali                # Moeen Ali
-    - JM Bairstow           # Jonny Bairstow (wk)
     - HC Brook              # Harry Brook
-    - SM Curran             # Sam Curran
     - BM Duckett            # Ben Duckett
     - LS Livingstone        # Liam Livingstone
-    - JN Malan              # Dawid Malan
     - AU Rashid             # Adil Rashid
     - JE Root               # Joe Root
-    - JJ Roy                # Jason Roy
     - PD Salt               # Phil Salt (wk)
-    - CR Woakes             # Chris Woakes
     - MA Wood               # Mark Wood
-    - RJW Topley            # Reece Topley
+    - JC Archer             # Jofra Archer
+    - AAP Atkinson          # Gus Atkinson
+    - JG Bethell            # Jacob Bethell
+    - BA Carse              # Brydon Carse
+    - J Overton             # Jamie Overton
+    - JL Smith              #Jamie Smith
+    #saqib mahmood
 
   South Africa:
     - T Bavuma              # Temba Bavuma (c)
-    - Q de Kock             # Quinton de Kock (wk)
     - AK Markram            # Aiden Markram
     - HE van der Dussen     # Rassie van der Dussen
     - DA Miller             # David Miller
@@ -225,9 +224,10 @@ squad:
     - L Ngidi               # Lungi Ngidi
     - KA Maharaj            # Keshav Maharaj
     - T Shamsi              # Tabraiz Shamsi
-    - RR Hendricks          # Reeza Hendricks
-    - AL Phehlukwayo        # Andile Phehlukwayo
-    - D Pretorius           # Dwaine Pretorius
+    #Ryan Rickleton (wicketkeeper)
+    #Tristan Stubbs
+    #Tony De Zorzi
+    #Wiaan Mulder
 
   Afghanistan:
     - Hashmatullah Shahidi   # Hashmatullah Shahidi (c)
@@ -235,13 +235,13 @@ squad:
     - Ibrahim Zadran         # Ibrahim Zadran
     - Rashid Khan            # Rashid Khan
     - Mohammad Nabi          # Mohammad Nabi
-    - Najibullah Zadran      # Najibullah Zadran
     - Azmatullah Omarzai     # Azmatullah Omarzai
-    - Mujeeb Ur Rahman       # Mujeeb Ur Rahman
     - Fazalhaq Farooqi       # Fazalhaq Farooqi
-    - Naveen-ul-Haq          # Naveen-ul-Haq
     - Gulbadin Naib          # Gulbadin Naib
     - Rahmat Shah            # Rahmat Shah
-    - Karim Janat            # Karim Janat
-    - Sharafuddin Ashraf     # Sharafuddin Ashraf
-    - Hazratullah Zazai      # Hazratullah Zazai
+    #Ikram Alikhil (wicketkeeper)
+    #Sediqullah Atal
+    #AM Ghazanfar
+    #Noor Ahmad
+    #Naveed Zadran
+    #Farid Ahmad Malik
