@@ -9,6 +9,7 @@
 # =================================================================================
 
 import sys
+import os
 import pandas as pd
 import numpy as np
 import yaml
@@ -282,12 +283,16 @@ class PlayerForm:
           2. Filter players based on the YAML squad.
           3. Calculate recent form scores for each player.
         """
+
+        if not os.path.exists(self.output_file):
+            os.makedirs(self.output_file)
+
         print(Fore.CYAN + "Starting data preprocessing...")
         df = self.load_data()
         filtered_df = self.filter_players_by_squad(df)
         form_scores = self.calculate_form(filtered_df)
         print(Fore.GREEN + "\n\nForm scores calculated successfully")
-        form_scores.to_csv("output/recent_player_form.csv", index=False)
+        form_scores.to_csv(self.output_file, index=False)
 
 
 def UpdatePlayerForm():
