@@ -34,7 +34,7 @@ class PlayerForm:
         """
 
         try:
-            with open("config.yaml", 'r') as stream:
+            with open("config.yaml", "r") as stream:
                 config = yaml.safe_load(stream)
         except Exception as e:
             print(Fore.RED + f"Error reading YAML config file: {e}")
@@ -42,13 +42,13 @@ class PlayerForm:
 
         self.config = config
 
-        self.bowling_file = config['player_form']['bowling_file']
-        self.batting_file = config['player_form']['batting_file']
-        self.fielding_file = config['player_form']['fielding_file']
-        self.output_file = config['player_form']['output_file']
-        self.previous_months = config['player_form']['previous_months']
-        self.decay_rate = config['player_form']['decay_rate']
-        self.key_cols = ['Player', 'Team', 'Start Date', 'End Date', "Mat"]
+        self.bowling_file = config["player_form"]["bowling_file"]
+        self.batting_file = config["player_form"]["batting_file"]
+        self.fielding_file = config["player_form"]["fielding_file"]
+        self.output_file = config["player_form"]["output_file"]
+        self.previous_months = config["player_form"]["previous_months"]
+        self.decay_rate = config["player_form"]["decay_rate"]
+        self.key_cols = ["Player", "Team", "Start Date", "End Date", "Mat"]
 
     def load_data(self):
         """
@@ -72,19 +72,22 @@ class PlayerForm:
 
         # Rename columns for each dataset (except for key columns).
         bowling_renamed = bowling.rename(
-            columns=lambda x: f"bowl {x}".lower() if x not in self.key_cols else x)
+            columns=lambda x: f"bowl {x}".lower() if x not in self.key_cols else x
+        )
         batting_renamed = batting.rename(
-            columns=lambda x: f"bat {x}".lower() if x not in self.key_cols else x)
+            columns=lambda x: f"bat {x}".lower() if x not in self.key_cols else x
+        )
         fielding_renamed = fielding.rename(
-            columns=lambda x: f"field {x}".lower() if x not in self.key_cols else x)
+            columns=lambda x: f"field {x}".lower() if x not in self.key_cols else x
+        )
 
         # Merge DataFrames on key columns using outer joins.
-        df = bowling_renamed.merge(batting_renamed, on=self.key_cols, how='outer')
-        df = df.merge(fielding_renamed, on=self.key_cols, how='outer')
+        df = bowling_renamed.merge(batting_renamed, on=self.key_cols, how="outer")
+        df = df.merge(fielding_renamed, on=self.key_cols, how="outer")
 
         try:
-            df['Start Date'] = pd.to_datetime(df['Start Date'])
-            df['End Date'] = pd.to_datetime(df['End Date'])
+            df["Start Date"] = pd.to_datetime(df["Start Date"])
+            df["End Date"] = pd.to_datetime(df["End Date"])
             batting.to_csv(self.batting_file, index=False)
             bowling.to_csv(self.bowling_file, index=False)
             fielding.to_csv(self.fielding_file, index=False)
@@ -109,7 +112,7 @@ class PlayerForm:
         """
         player_to_team = {}
         valid_players = []
-        squad = self.config.get('squad', {})
+        squad = self.config.get("squad", {})
 
         for team, players in squad.items():
             if players:
@@ -117,9 +120,9 @@ class PlayerForm:
                     valid_players.append(player)
                     player_to_team[player] = team
 
-        filtered_df = df[df['Player'].isin(valid_players)].copy()
+        filtered_df = df[df["Player"].isin(valid_players)].copy()
         yaml_players = set(valid_players)
-        df_players = set(filtered_df['Player'])
+        df_players = set(filtered_df["Player"])
         missing_players = yaml_players - df_players
 
         if missing_players:
@@ -128,7 +131,10 @@ class PlayerForm:
                 team = player_to_team.get(player, "Unknown Team")
                 print(f"- {player} ({team})")
         else:
-            print(Fore.GREEN + "All players from the YAML file are present in the DataFrame.")
+            print(
+                Fore.GREEN
+                + "All players from the YAML file are present in the DataFrame."
+            )
 
         print(f"\nExtracted players: {len(df_players)} / {len(yaml_players)}")
         print(f"Missing players: {len(missing_players)}\n")
@@ -154,29 +160,33 @@ class PlayerForm:
                           'Bowling Form', and 'Fielding Form'.
         """
         # Ensure End Date is in datetime format and filter by the cutoff date.
-        player_df['End Date'] = pd.to_datetime(player_df['End Date'])
-        cutoff_date = pd.to_datetime('today') - pd.DateOffset(months=self.previous_months)
-        recent_data = player_df[player_df['End Date'] >= cutoff_date].copy()
+        player_df["End Date"] = pd.to_datetime(player_df["End Date"])
+        cutoff_date = pd.to_datetime("today") - pd.DateOffset(
+            months=self.previous_months
+        )
+        recent_data = player_df[player_df["End Date"] >= cutoff_date].copy()
 
         # Sort matches for each player by End Date descending and assign match indices.
-        recent_data.sort_values(by=['Player', 'End Date'], ascending=[True, False], inplace=True)
-        recent_data['match_index'] = recent_data.groupby('Player').cumcount()
+        recent_data.sort_values(
+            by=["Player", "End Date"], ascending=[True, False], inplace=True
+        )
+        recent_data["match_index"] = recent_data.groupby("Player").cumcount()
 
         # Compute exponential decay weights (more weight to recent matches).
-        recent_data['weight'] = np.exp(-self.decay_rate * recent_data['match_index'])
+        recent_data["weight"] = np.exp(-self.decay_rate * recent_data["match_index"])
 
         # Helper function: compute the EWMA for a given column for each player.
         def compute_ewma(g, col):
-            return np.average(g[col].fillna(0), weights=g['weight'])
+            return np.average(g[col].fillna(0), weights=g["weight"])
 
         # ------------------
         # Batting Form
         # ------------------
         batting_metrics = {}
-        for metric in ['bat runs', 'bat bf', 'bat sr', 'bat ave', 'bat 4s', 'bat 6s']:
-            batting_metrics[metric] = recent_data.groupby('Player', group_keys=False).apply(
-                    lambda g: compute_ewma(g, metric), include_groups=False
-            )
+        for metric in ["bat runs", "bat bf", "bat sr", "bat ave", "bat 4s", "bat 6s"]:
+            batting_metrics[metric] = recent_data.groupby(
+                "Player", group_keys=False
+            ).apply(lambda g: compute_ewma(g, metric), include_groups=False)
         batting_df = pd.DataFrame(batting_metrics).reset_index()
 
         # Normalize each metric based on the global distribution.
@@ -188,78 +198,82 @@ class PlayerForm:
             return series.apply(lambda x: norm.cdf((x - mean_val) / std_val) * 100)
 
         batting_norm = {}
-        for col in ['bat runs', 'bat ave', 'bat sr', 'bat 4s', 'bat 6s']:
+        for col in ["bat runs", "bat ave", "bat sr", "bat 4s", "bat 6s"]:
             batting_norm[col] = normalize_series(batting_df[col])
 
-        batting_df['Batting Form'] = (
-            0.4 * batting_norm['bat runs'] +
-            0.2 * batting_norm['bat ave'] +
-            0.2 * batting_norm['bat sr'] +
-            0.1 * batting_norm['bat 4s'] +
-            0.1 * batting_norm['bat 6s']
+        batting_df["Batting Form"] = (
+            0.4 * batting_norm["bat runs"]
+            + 0.2 * batting_norm["bat ave"]
+            + 0.2 * batting_norm["bat sr"]
+            + 0.1 * batting_norm["bat 4s"]
+            + 0.1 * batting_norm["bat 6s"]
         )
 
         # ------------------
         # Bowling Form
         # ------------------
         bowling_metrics = {}
-        for metric in ['bowl wkts', 'bowl runs', 'bowl econ', 'bowl overs', 'bowl ave']:
-            bowling_metrics[metric] = recent_data.groupby('Player', group_keys=False).apply(
-                lambda g: compute_ewma(g, metric), include_groups=False
-            )
+        for metric in ["bowl wkts", "bowl runs", "bowl econ", "bowl overs", "bowl ave"]:
+            bowling_metrics[metric] = recent_data.groupby(
+                "Player", group_keys=False
+            ).apply(lambda g: compute_ewma(g, metric), include_groups=False)
         bowling_df = pd.DataFrame(bowling_metrics).reset_index()
 
         bowling_norm = {}
-        bowling_norm['bowl wkts'] = normalize_series(bowling_df['bowl wkts'])
-        bowling_norm['bowl ave'] = 100 - normalize_series(bowling_df['bowl ave'])
-        bowling_norm['bowl econ'] = 100 - normalize_series(bowling_df['bowl econ'])
+        bowling_norm["bowl wkts"] = normalize_series(bowling_df["bowl wkts"])
+        bowling_norm["bowl ave"] = 100 - normalize_series(bowling_df["bowl ave"])
+        bowling_norm["bowl econ"] = 100 - normalize_series(bowling_df["bowl econ"])
 
-        bowling_df['Bowling Form'] = (
-            0.65 * bowling_norm['bowl wkts'] +
-            0.15 * bowling_norm['bowl ave'] +
-            0.20 * bowling_norm['bowl econ']
+        bowling_df["Bowling Form"] = (
+            0.65 * bowling_norm["bowl wkts"]
+            + 0.15 * bowling_norm["bowl ave"]
+            + 0.20 * bowling_norm["bowl econ"]
         )
 
         # ------------------
         # Fielding Form
         # ------------------
         fielding_metrics = {}
-        for metric in ['field ct', 'field st', 'field ct wk']:
-            fielding_metrics[metric] = recent_data.groupby('Player', group_keys=False).apply(
-                    lambda g: compute_ewma(g, metric), include_groups=False
-            )
+        for metric in ["field ct", "field st", "field ct wk"]:
+            fielding_metrics[metric] = recent_data.groupby(
+                "Player", group_keys=False
+            ).apply(lambda g: compute_ewma(g, metric), include_groups=False)
         fielding_df = pd.DataFrame(fielding_metrics).reset_index()
 
         fielding_norm = {}
-        for col in ['field ct', 'field st', 'field ct wk']:
+        for col in ["field ct", "field st", "field ct wk"]:
             fielding_norm[col] = normalize_series(fielding_df[col])
 
-        fielding_df['Fielding Form'] = (
-            0.5 * fielding_norm['field ct'] +
-            0.3 * fielding_norm['field st'] +
-            0.2 * fielding_norm['field ct wk']
+        fielding_df["Fielding Form"] = (
+            0.5 * fielding_norm["field ct"]
+            + 0.3 * fielding_norm["field st"]
+            + 0.2 * fielding_norm["field ct wk"]
         )
 
-        form_df = batting_df[['Player', 'Batting Form']].merge(
-            bowling_df[['Player', 'Bowling Form']], on='Player', how='outer'
-        ).merge(
-            fielding_df[['Player', 'Fielding Form']], on='Player', how='outer'
+        form_df = (
+            batting_df[["Player", "Batting Form"]]
+            .merge(bowling_df[["Player", "Bowling Form"]], on="Player", how="outer")
+            .merge(fielding_df[["Player", "Fielding Form"]], on="Player", how="outer")
         )
 
-        player_months = recent_data.groupby(['Player', 'Team'])['End Date'].agg(
-            lambda x: (
-                (x.max() - x.min()).days // 30,
-                x.max(),  # Latest date
-                x.min()   # Oldest date
+        player_months = (
+            recent_data.groupby(["Player", "Team"])["End Date"]
+            .agg(
+                lambda x: (
+                    (x.max() - x.min()).days // 30,
+                    x.max(),  # Latest date
+                    x.min(),  # Oldest date
+                )
             )
-        ).reset_index()
-        player_months.rename(columns={'End Date': 'Months of Data'}, inplace=True)
-        player_months[['Months of Data', 'Latest Date', 'Oldest Date']] = pd.DataFrame(
-            player_months['Months of Data'].tolist(), index=player_months.index
+            .reset_index()
         )
-        player_months = player_months.sort_values(by='Months of Data', ascending=True)
+        player_months.rename(columns={"End Date": "Months of Data"}, inplace=True)
+        player_months[["Months of Data", "Latest Date", "Oldest Date"]] = pd.DataFrame(
+            player_months["Months of Data"].tolist(), index=player_months.index
+        )
+        player_months = player_months.sort_values(by="Months of Data", ascending=True)
         for _, row in player_months.iterrows():
-            if row['Months of Data'] < 3:
+            if row["Months of Data"] < 3:
                 print(
                     f"{Fore.YELLOW}{row['Months of Data']}\t"
                     f"{row['Oldest Date'].strftime('%b %y')} - "

@@ -40,7 +40,7 @@ TEAM_CODES = {
     "England": "1",
     "Australia": "2",
     "Afghanistan": "40",
-    "South Africa": "3"
+    "South Africa": "3",
 }
 
 # Base URL for web scrapping
@@ -85,12 +85,13 @@ class Scrapper:
                         end_date = datetime.date(year + 1, 1, 1)
                     else:
                         end_date = datetime.date(year, month + 1, 1)
-                    time_spans.append((
-                        start_date.strftime("%d+%b+%Y"),
-                        end_date.strftime("%d+%b+%Y")
-                    ))
+                    time_spans.append(
+                        (start_date.strftime("%d+%b+%Y"), end_date.strftime("%d+%b+%Y"))
+                    )
                 except Exception as e:
-                    print(f"{Fore.RED}Error generating dates for {year}-{month}: {e}{Style.RESET_ALL}")
+                    print(
+                        f"{Fore.RED}Error generating dates for {year}-{month}: {e}{Style.RESET_ALL}"
+                    )
         return time_spans
 
     def extract_player_data(self, html):
@@ -149,38 +150,52 @@ class Scrapper:
         total_iterations = len(time_spans) * len(self.team_codes)
         progress_bar_format = (
             "{l_bar}{bar} | "
-            f"{Fore.GREEN}Elapsed: " + "{elapsed}" + f"{Style.RESET_ALL} | " +
-            "{postfix}"
+            f"{Fore.GREEN}Elapsed: "
+            + "{elapsed}"
+            + f"{Style.RESET_ALL} | "
+            + "{postfix}"
         )
 
         self.downloaded_bytes[player_type] = 0
 
-        with tqdm(total=total_iterations,
-                  desc=f"{Fore.CYAN}Scraping {player_type}{Style.RESET_ALL}",
-                  unit="req",
-                  bar_format=progress_bar_format,
-                  colour="magenta") as pbar:
-            pbar.set_postfix_str(f"{Fore.YELLOW}Data Fetched: {self._format_bytes(0)}{Style.RESET_ALL}")
+        with tqdm(
+            total=total_iterations,
+            desc=f"{Fore.CYAN}Scraping {player_type}{Style.RESET_ALL}",
+            unit="req",
+            bar_format=progress_bar_format,
+            colour="magenta",
+        ) as pbar:
+            pbar.set_postfix_str(
+                f"{Fore.YELLOW}Data Fetched: {self._format_bytes(0)}{Style.RESET_ALL}"
+            )
             for start_date, end_date in time_spans:
                 for team_name, team_code in self.team_codes.items():
                     try:
                         params = [
                             ("class", "2"),
                             ("filter", "advanced"),
-                            ("orderby", "runs" if player_type == "batting"
-                             else "wickets" if player_type == "bowling" else "dis"),
+                            (
+                                "orderby",
+                                (
+                                    "runs"
+                                    if player_type == "batting"
+                                    else (
+                                        "wickets" if player_type == "bowling" else "dis"
+                                    )
+                                ),
+                            ),
                             ("spanmin1", start_date),
                             ("spanmax1", end_date),
                             ("spanval1", "span"),
                             ("team", team_code),
                             ("template", "results"),
-                            ("type", player_type)
+                            ("type", player_type),
                         ]
                         response = requests.get(
                             self.base_url,
                             params=dict(params),
                             headers=self.headers,
-                            timeout=15
+                            timeout=15,
                         )
                         response.raise_for_status()
 
@@ -196,7 +211,9 @@ class Scrapper:
                             data["End Date"] = end_date
                             df = pd.concat([df, data], ignore_index=True)
                     except requests.exceptions.RequestException as re:
-                        print(f"{Fore.RED}Request error for {team_name} ({start_date} to {end_date}): {re}{Style.RESET_ALL}")
+                        print(
+                            f"{Fore.RED}Request error for {team_name} ({start_date} to {end_date}): {re}{Style.RESET_ALL}"
+                        )
                     except Exception as e:
                         print(f"{Fore.RED}Unexpected error: {e}{Style.RESET_ALL}")
                     finally:
@@ -218,7 +235,18 @@ class Scrapper:
             if data_type == "batting":
                 if "HS" in df.columns:
                     df["HS"] = df["HS"].str.replace("*", "", regex=False)
-                int_cols = ["Mat", "Inns", "NO", "Runs", "BF", "100", "50", "0", "4s", "6s"]
+                int_cols = [
+                    "Mat",
+                    "Inns",
+                    "NO",
+                    "Runs",
+                    "BF",
+                    "100",
+                    "50",
+                    "0",
+                    "4s",
+                    "6s",
+                ]
                 float_cols = ["Ave", "SR"]
             elif data_type == "bowling":
                 int_cols = ["Mat", "Inns", "Mdns", "Runs", "Wkts", "4", "5"]
@@ -240,16 +268,27 @@ class Scrapper:
             date_cols = ["Start Date", "End Date"]
             for col in date_cols:
                 if col in df.columns:
-                    df[col] = pd.to_datetime(df[col], format="%d+%b+%Y", errors="coerce")
+                    df[col] = pd.to_datetime(
+                        df[col], format="%d+%b+%Y", errors="coerce"
+                    )
         except Exception as e:
-            print(f"{Fore.RED}Error cleaning data for {data_type}: {e}{Style.RESET_ALL}")
+            print(
+                f"{Fore.RED}Error cleaning data for {data_type}: {e}{Style.RESET_ALL}"
+            )
 
         return df
 
 
 @click.command()
-@click.option('--start_year', prompt='Start year', type=int, help='Starting year for data collection')
-@click.option('--end_year', prompt='End year', type=int, help='Ending year for data collection')
+@click.option(
+    "--start_year",
+    prompt="Start year",
+    type=int,
+    help="Starting year for data collection",
+)
+@click.option(
+    "--end_year", prompt="End year", type=int, help="Ending year for data collection"
+)
 def scrapeData(start_year, end_year):
     """Main entry point: generate time spans, scrape data for all player types, and save to CSV."""
     try:
@@ -259,7 +298,9 @@ def scrapeData(start_year, end_year):
         if start_year < 1970 or end_year > current_year:
             raise ValueError(f"Years must be between 1970 and {current_year}")
 
-        print(f"\n{Fore.GREEN}Generating time spans from {start_year} to {end_year}...{Style.RESET_ALL}")
+        print(
+            f"\n{Fore.GREEN}Generating time spans from {start_year} to {end_year}...{Style.RESET_ALL}"
+        )
         scrapper = Scrapper()
         time_spans = scrapper.generate_time_spans(start_year, end_year)
 
@@ -273,7 +314,9 @@ def scrapeData(start_year, end_year):
         data_frames = {}
 
         for data_type in ["batting", "bowling", "fielding"]:
-            print(f"\n{Fore.MAGENTA}=== Processing {data_type} data ==={Style.RESET_ALL}")
+            print(
+                f"\n{Fore.MAGENTA}=== Processing {data_type} data ==={Style.RESET_ALL}"
+            )
             df = scrapper.scrape_player_data(data_type, time_spans)
             process_total = scrapper._format_bytes(scrapper.downloaded_bytes[data_type])
             process_totals[data_type] = process_total
@@ -285,28 +328,37 @@ def scrapeData(start_year, end_year):
             else:
                 print(f"{Fore.YELLOW}No {data_type} data collected{Style.RESET_ALL}")
 
-            print(f"{Fore.CYAN}{data_type.capitalize()} data downloaded: {process_total}{Style.RESET_ALL}")
+            print(
+                f"{Fore.CYAN}{data_type.capitalize()} data downloaded: {process_total}{Style.RESET_ALL}"
+            )
 
         for data_type, df in data_frames.items():
             csv_path = os.path.join(output_dir, f"{data_type}_data.csv")
             try:
                 df.to_csv(csv_path, index=False)
-                print(f"{Fore.GREEN}Saved {data_type} data to {csv_path}{Style.RESET_ALL}")
+                print(
+                    f"{Fore.GREEN}Saved {data_type} data to {csv_path}{Style.RESET_ALL}"
+                )
             except Exception as e:
                 print(f"{Fore.RED}Error saving {data_type} data: {e}{Style.RESET_ALL}")
 
         overall_total = scrapper._format_bytes(scrapper.total_downloaded_bytes)
         print(f"\n{Fore.CYAN}Scraping completed successfully!{Style.RESET_ALL}")
-        print(f"Total data downloaded overall: {Fore.YELLOW}{overall_total}{Style.RESET_ALL}")
+        print(
+            f"Total data downloaded overall: {Fore.YELLOW}{overall_total}{Style.RESET_ALL}"
+        )
 
         for key, value in process_totals.items():
-            print(f" - {key.capitalize()} data downloaded: {Fore.YELLOW}{value}{Style.RESET_ALL}")
+            print(
+                f" - {key.capitalize()} data downloaded: {Fore.YELLOW}{value}{Style.RESET_ALL}"
+            )
     except KeyboardInterrupt:
         print(f"\n{Fore.RED}Operation cancelled by user.{Style.RESET_ALL}")
         sys.exit(1)
     except Exception as e:
         print(f"{Fore.RED}Fatal error: {e}{Style.RESET_ALL}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     try:
