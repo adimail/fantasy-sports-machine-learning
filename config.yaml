@@ -130,10 +130,10 @@ squad:
   India:
     - RG Sharma             # Rohit Sharma (c)
     - Shubman Gill          # Shubman Gill (vc)
-    - JJ Bumrah             # Jasprit Bumrah
+    # - JJ Bumrah             # Jasprit Bumrah
     - SS Iyer               # Shreyas Iyer
     - RA Jadeja             # Ravindra Jadeja
-    - Yashasvi Jaiswal      # Yashasvi Jaiswal
+    #- Yashasvi Jaiswal      # Yashasvi Jaiswal
     - V Kohli               # Virat Kohli
     - HH Pandya             # Hardik Pandya
     - RR Pant               # Rishabh Pant (wk)
@@ -143,6 +143,8 @@ squad:
     - Arshdeep Singh        # Arshdeep Singh
     - Washington Sundar     # Washington Sundar
     - Kuldeep Yadav         # Kuldeep Yadav
+    - Harshit Rana          # Harshit Rana
+    - Varun Chakravarthy    # Varun Chakravarthy
 
   New Zealand:
     - MJ Santner            # Mitchell Santner (c)
@@ -179,21 +181,26 @@ squad:
     - Fakhar Zaman          # Fakhar Zaman
 
   Australia:
-    - PJ Cummins            # Pat Cummins (c)
+    #- PJ Cummins            # Pat Cummins 
     - AT Carey              # Alex Carey (wk)
     - TM Head               # Travis Head
     - M Labuschagne         # Marnus Labuschagne
     - GJ Maxwell            # Glenn Maxwell
-    - MR Marsh              # Mitchell Marsh
-    - MP Stoinis            # Marcus Stoinis
+    #- MR Marsh              # Mitchell Marsh
+    #- MP Stoinis            # Marcus Stoinis
     - A Zampa               # Adam Zampa
-    - JR Hazlewood          # Josh Hazlewood
-    - MA Starc              # Mitchell Starc
-    - SPD Smith             # Steve Smith
+    #- JR Hazlewood          # Josh Hazlewood
+    #- MA Starc              # Mitchell Starc
+    - SPD Smith             # Steve Smith (C)
     - NT Ellis              # Nathan Ellis
     - AM Hardie             # Aaron Hardie
     - JP Inglis             # Josh Inglis(wc)
     - MW Short              # Matthew Short
+    - BJ Dwarshuis          # Ben Dwarshuis
+    - JF-MacGurk            # Jake Fraser-McGurk
+    - SA Abbott             # Sean Abbott
+    - T Sangha              # Tanveer Sangha
+    - SH Johnson            # Spencer Johnson
 
   England:
     - JC Buttler            # Jos Buttler (c, wk)
@@ -206,11 +213,12 @@ squad:
     - MA Wood               # Mark Wood
     - JC Archer             # Jofra Archer
     - AAP Atkinson          # Gus Atkinson
-    - JG Bethell            # Jacob Bethell
+    #- JG Bethell            # Jacob Bethell
     - BA Carse              # Brydon Carse
     - J Overton             # Jamie Overton
     - JL Smith              #Jamie Smith
-    #saqib mahmood
+    - S Mahmood             #saqib mahmood
+    - J Overton             #Jamie Overton
 
   South Africa:
     - T Bavuma              # Temba Bavuma (c)
@@ -224,10 +232,10 @@ squad:
     - L Ngidi               # Lungi Ngidi
     - KA Maharaj            # Keshav Maharaj
     - T Shamsi              # Tabraiz Shamsi
-    #Ryan Rickleton (wicketkeeper)
-    #Tristan Stubbs
-    #Tony De Zorzi
-    #Wiaan Mulder
+    - RD Rickleton          # Ryan Rickleton (wicketkeeper)
+    - T Stubbs              # Tristan Stubbs
+    - T de Zorzi            # Tony De Zorzi
+    - PWA Mulder            # Wiaan Mulder
 
   Afghanistan:
     - Hashmatullah Shahidi   # Hashmatullah Shahidi (c)
@@ -239,9 +247,10 @@ squad:
     - Fazalhaq Farooqi       # Fazalhaq Farooqi
     - Gulbadin Naib          # Gulbadin Naib
     - Rahmat Shah            # Rahmat Shah
-    #Ikram Alikhil (wicketkeeper)
-    #Sediqullah Atal
-    #AM Ghazanfar
-    #Noor Ahmad
-    #Naveed Zadran
-    #Farid Ahmad Malik
+    - Ikram Alikhil          #Ikram Alikhil (wicketkeeper)
+    - Sediqullah Atal        #Sediqullah Atal
+    # AM Ghazanfar
+    - Noor Ahmad              #Noor Ahmad
+    - Naveed Zadran          #Naveed Zadran
+    - Farid Ahmad Malik      #Farid Ahmad Malik
+    - Nangeyalia Kharote     #Nangeyalia Kharote
