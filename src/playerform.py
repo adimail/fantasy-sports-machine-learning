@@ -100,30 +100,38 @@ class PlayerForm:
 
     def filter_players_by_squad(self, df):
         """
-        Filters the DataFrame to retain only rows for players present in the squad
-        list defined in the YAML configuration file. It also reports players from the
-        YAML file that are missing in the DataFrame.
+        Filters the DataFrame to retain only rows for players present in the squad CSV file.
+        It also reports players from the squad CSV file that are missing in the DataFrame.
+
+        The CSV file (specified by self.config["player_form"]["squad_file"]) is expected to have the following columns:
+            Credits, Player Type, Player Name, Team, ESPN player name
+
+        After filtering, the "Player" column in the filtered DataFrame is updated with the full name
+        from the "Player Name" column of the squad CSV, and the columns "Credits" and "Player Type" are merged in.
 
         Parameters:
             df (pd.DataFrame): The input DataFrame containing player data.
 
         Returns:
-            pd.DataFrame: The filtered DataFrame containing only valid players.
+            pd.DataFrame: The filtered DataFrame containing only valid players with updated names and additional columns.
         """
-        player_to_team = {}
-        valid_players = []
-        squad = self.config.get("squad", {})
+        try:
+            squad_df = pd.read_csv(self.config["player_form"]["squad_file"])
+        except Exception as e:
+            print(Fore.RED + f"Error reading squad CSV file: {e}")
+            sys.exit(1)
 
-        for team, players in squad.items():
-            if players:
-                for player in players:
-                    valid_players.append(player)
-                    player_to_team[player] = team
+        valid_players = squad_df["ESPN player name"].dropna().tolist()
+        player_to_team = squad_df.set_index("ESPN player name")["Team"].to_dict()
+        player_abbrev_to_full = squad_df.set_index("ESPN player name")[
+            "Player Name"
+        ].to_dict()
 
         filtered_df = df[df["Player"].isin(valid_players)].copy()
-        yaml_players = set(valid_players)
-        df_players = set(filtered_df["Player"])
-        missing_players = yaml_players - df_players
+
+        squad_players_set = set(valid_players)
+        df_players_set = set(filtered_df["Player"])
+        missing_players = squad_players_set - df_players_set
 
         if missing_players:
             print(Fore.YELLOW + "Missing players from data:")
@@ -133,11 +141,22 @@ class PlayerForm:
         else:
             print(
                 Fore.GREEN
-                + "All players from the YAML file are present in the DataFrame."
+                + "All players from the squad CSV file are present in the DataFrame."
             )
 
-        print(f"\nExtracted players: {len(df_players)} / {len(yaml_players)}")
+        print(f"\nExtracted players: {len(df_players_set)} / {len(squad_players_set)}")
         print(f"Missing players: {len(missing_players)}\n")
+
+        filtered_df = filtered_df.merge(
+            squad_df[["Credits", "Player Type", "Player Name", "ESPN player name"]],
+            left_on="Player",
+            right_on="ESPN player name",
+            how="left",
+        )
+
+        filtered_df["Player"] = filtered_df["Player Name"]
+
+        filtered_df.drop(["ESPN player name", "Player Name"], axis=1, inplace=True)
 
         return filtered_df
 
@@ -255,6 +274,10 @@ class PlayerForm:
             .merge(bowling_df[["Player", "Bowling Form"]], on="Player", how="outer")
             .merge(fielding_df[["Player", "Fielding Form"]], on="Player", how="outer")
         )
+        metadata_df = player_df[
+            ["Player", "Credits", "Player Type", "Team"]
+        ].drop_duplicates("Player")
+        form_df = form_df.merge(metadata_df, on="Player", how="left")
 
         player_months = (
             recent_data.groupby(["Player", "Team"])["End Date"]
