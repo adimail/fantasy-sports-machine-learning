@@ -275,7 +275,7 @@ class PlayerForm:
         for _, row in player_months.iterrows():
             if row["Months of Data"] < 3:
                 print(
-                    f"{Fore.YELLOW}{row['Months of Data']}\t"
+                    f"{Fore.YELLOW}{row['Months of Data'] + 1}\t"
                     f"{row['Oldest Date'].strftime('%b %y')} - "
                     f"{row['Latest Date'].strftime('%b %y')} \t"
                     f"{row['Player']} ({row['Team']})"
