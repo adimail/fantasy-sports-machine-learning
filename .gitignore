@@ -144,7 +144,7 @@ notebook/templates/*.html
 
 odis_json
 odi_csv
-output
+notebooks/output/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
