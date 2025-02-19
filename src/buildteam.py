@@ -1,19 +1,10 @@
 import pandas as pd
 import numpy as np
-from xgboost import XGBRegressor
-from sklearn.model_selection import train_test_split
 import pulp
 
 
 class FantasyTeamOptimizer:
     def __init__(self):
-        self.model = XGBRegressor(
-            n_estimators=100,
-            max_depth=5,
-            learning_rate=0.1,
-            random_state=42,
-            verbosity=2,
-        )
         self.evaluation_df = None
         self.roster_df = None
         self.merged_df = None
@@ -51,7 +42,7 @@ class FantasyTeamOptimizer:
             "All Rounder": "ALL",
             "Batsmen": "BAT",
             "Bowlers": "BOWL",
-            "Wicket Keeper": "BAT",
+            "Wicket Keeper": "Keeper",
         }
         roster_filtered["Player Type"] = roster_filtered["Player Type"].map(
             type_mapping
@@ -102,37 +93,10 @@ class FantasyTeamOptimizer:
             else:
                 return row["Batting Form"], "BAT"
 
-        # The apply will return a DataFrame with two columns; assign them to "Predicted" and "AssignedRole"
         self.merged_df[["Predicted", "AssignedRole"]] = self.merged_df.apply(
             lambda row: pd.Series(compute(row)), axis=1
         )
         print("Computed predicted scores and assigned roles.")
-
-    def train_model(self):
-        """
-        Train an XGBoost model to predict fantasy points using the three form scores as features.
-        Although the target is directly computed from the form scores, this step is included to use
-        the provided parameters and simulate the ML training process.
-        """
-        if self.merged_df.empty:
-            print("Merged DataFrame is empty. Skipping training.")
-            return
-
-        print("Training model...")
-        X = self.merged_df[["Batting Form", "Bowling Form", "Fielding Form"]]
-        y = self.merged_df["Predicted"]
-
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=42
-        )
-        self.model.fit(X_train, y_train, eval_set=[(X_test, y_test)], verbose=True)
-        train_score = self.model.score(X_train, y_train)
-        test_score = self.model.score(X_test, y_test)
-        print(
-            f"Model trained. Train score: {train_score:.2f}, Test score: {test_score:.2f}"
-        )
-
-        self.merged_df["Predicted"] = self.model.predict(X)
 
     def optimize_team(self):
         """
@@ -216,7 +180,6 @@ def BuildTeam():
     optimizer.load_data()
     optimizer.filter_and_merge()
     optimizer.compute_target_and_role()
-    optimizer.train_model()
     team = optimizer.optimize_team()
 
     print("\n\nSelected Team\n")
