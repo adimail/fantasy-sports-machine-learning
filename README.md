@@ -1,194 +1,166 @@
-# Dream11 Fantasy Points System
+# Fantasy Team Optimization System
 
 ![Script Preview](script.jpeg)
 
-<video controls>
-  <source src="demo.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+This system is composed of two primary modules:
 
-# How to Use
+1. **Player Form Calculation** – Computes recent performance metrics (form scores) for each player based on historical match data.
+2. **Fantasy Team Optimizer** – Uses the computed form scores along with additional roster information to select an optimal team under given constraints.
 
-This repository contains scripts for scraping data from ESPN, pre-processing that data, and calculating recent player form. The processed data is saved in the `output` directory. After scraping, copy the contents from `output` to the `data` directory before running the model scripts.
+Each module is described in detail below.
 
-The algorithm for calculating recent player form is located at `src/playerform.py`
+---
 
-> **Note:** All scripts are located in the `src` directory. Currently, there are six variations of model testing scripts (prefixed with `playing11-`). Once the best model is selected, its core will be migrated to `buildteam.py` in the project root.
+## 1. Player Form Calculation
 
-## Cloning the Repository and Setting Up the Environment
+This module is responsible for processing raw match data (batting, bowling, and fielding statistics) and producing composite performance scores (form scores) for each player. The main steps are:
 
-Follow these steps to get started:
+### a. Data Loading and Cleaning
 
-1. **Fork and Clone the Repository:**
+- **CSV Inputs:** Three CSV files (one each for batting, bowling, and fielding) are read.
+- **Drop Empty Columns:** Any column that is entirely missing is dropped to ensure clean data.
+- **Column Renaming:**
+  - For clarity and to avoid naming conflicts during merge, columns in each dataset are prefixed with `"bat "`, `"bowl "`, or `"field "` except for key columns (`Player`, `Team`, `Start Date`, `End Date`, `Mat`).
 
-   If you plan to contribute to this project, first fork the repository into your GitHub account. If you have collaborator access, you can clone the repository directly. Remember to create a new branch for your changes before submitting a pull request.
+### b. Data Merging
 
-   Forked repo:
+- **Merging on Key Columns:**
+  - The three datasets are merged using outer joins on the key columns. This creates a unified dataset that combines all available statistics for each match.
+- **Date Conversion:**
+  - The date columns (`Start Date` and `End Date`) are converted to datetime objects, which allows filtering by recency.
 
-   ```bash
-   git clone https://github.com/yourusername/fantasy-sports-machine-learning.git
-   cd fantasy-sports-machine-learning
-   ```
+### c. Filtering by Recent Matches
 
-   Main Repo:
+- **Time Window:**
+  - A parameter (`previous_months`) specifies the recency window. Matches older than the cutoff (today’s date minus the number of months) are excluded.
+- **Sorting and Indexing:**
+  - The remaining (recent) data is sorted by `Player` and `End Date` (most recent first), and a match index is assigned to each player’s matches.
 
-   ```bash
-   git clone https://github.com/adimail/fantasy-sports-machine-learning.git
-   cd fantasy-sports-machine-learning
-   ```
+### d. Exponential Decay Weighting
 
-2. **Create a Virtual Environment:**
+- **Decay Weights:**
+  - An exponential decay factor (using `decay_rate`) is applied based on the match index. This gives higher weight to recent performances compared to older ones.
 
-   It is recommended to use a virtual environment to manage your project dependencies. Create and activate a virtual environment using the following commands:
+### e. Calculation of Exponentially Weighted Averages (EWMA)
 
-   - **For macOS/Linux:**
+- **Metric-by-Metric Calculation:**
+  - For each performance metric (e.g., runs scored, wickets taken, catches), an exponentially weighted moving average is calculated for each player.
 
-     ```bash
-     python3 -m venv venv
-     source venv/bin/activate
-     ```
+### f. Normalization of Metrics
 
-   - **For Windows:**
+- **Normalization Method:**
+  - Each EWMA is normalized to a 0–100 scale using the cumulative distribution function (CDF) of the standard normal distribution. This converts raw values into scores that reflect how a player performs relative to the global distribution.
+- **Handling Different Metrics:**
+  - For batting: metrics like runs, strike rate, average, and boundaries are combined with specific weights.
+  - For bowling: wickets, average, and economy (with adjustments such as subtracting from 100 for metrics where a lower value is better) are combined.
+  - For fielding: key fielding metrics are weighted and summed.
 
-     ```bash
-     python -m venv venv
-     venv\Scripts\activate
-     ```
+### g. Composite Form Score Generation
 
-3. **Install Dependencies:**
+- **Final Output:**
 
-   With the virtual environment activated, install the necessary packages using:
+  - The resulting DataFrame includes for each player:
+    - **Player Name**
+    - **Batting Form:** Composite score based on batting metrics.
+    - **Bowling Form:** Composite score based on bowling metrics.
+    - **Fielding Form:** Composite score based on fielding metrics.
+    - **Additional Metadata:** Credits, Player Type, and Team.
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+- **Example Format:**
 
-4. **Branching and Pull Requests:**
+  ```
+  Player,Batting Form,Bowling Form,Fielding Form,Credits,Player Type,Team
+  Aaron Hardie,35.93,43.59,40.99,6.5,ALL,Australia
+  Abrar Ahmed,31.81,70.61,35.62,7.0,BOWL,Pakistan
+  ```
 
-   To keep the project organized and make the review process smoother, follow these guidelines:
+---
 
-   - **Create a New Branch:**
-     Before starting work on a new feature or bug fix, create a new branch with a descriptive name (e.g., `feature/user-authentication` or `bugfix/fix-data-scraper`).
+## 2. Fantasy Team Optimizer
 
-     ```bash
-     git checkout -b your-feature-branch
-     ```
+This module uses the computed form scores and additional roster data to select the best possible fantasy team. The process involves the following steps:
 
-   - **Commit Your Changes:**
-     After making changes, commit them with a clear and concise commit message.
+### a. Data Loading and Preprocessing
 
-     ```bash
-     git add .
-     git commit -m "Description of your changes"
-     ```
+- **Evaluation Data:**
+  - Load the player form data (the output from the Player Form Calculation module).
+- **Roster Data:**
+  - Load an input roster CSV file that contains details such as Credits, Player Type, Player Name, Team, and whether the player is playing.
+- **Filtering:**
+  - Only players marked as `"PLAYING"` are considered.
+- **Player Type Mapping:**
+  - The roster’s player types (e.g., "All Rounder", "Batsmen", "Bowlers", "Wicket Keeper") are mapped to the abbreviated types used in the evaluation file (`ALL`, `BAT`, `BOWL`).
+  - For instance, wicket keepers are treated as batsmen.
 
-   - **Push the Branch and Open a Pull Request:**
-     Push your branch to your fork or the main repository (if you have push access), then open a pull request to merge your changes into the main branch. Ensure your pull request includes a description of the changes and references any relevant issues.
+### b. Merging Evaluation and Roster Data
 
-     ```bash
-     git push origin your-feature-branch
-     ```
+- **Merge Keys:**
+  - The filtered roster is merged with the evaluation data on `Player` and `Player Type` to ensure that the most up-to-date form scores are used for team selection.
+- **Result Check:**
+  - A warning is printed if the merge results in an empty DataFrame, indicating potential mismatches in player names or types.
 
-     Finally, navigate to the repository on GitHub and create a pull request.
+### c. Predicted Fantasy Points and Role Assignment
 
-## Running the Scripts
+- **Predicted Score Calculation:**
+  - For each player, a “Predicted” fantasy point score is determined based on their form scores:
+    - **Bowlers:** Use the Bowling Form directly.
+    - **Batsmen:** Use the Batting Form directly.
+    - **All-Rounders:** The highest value among Batting, Bowling, and Fielding is chosen.
+      - The corresponding role is assigned as `"BAT"` if batting or fielding is best (with fielding defaulting to batsman) or `"BOWL"` if bowling is best.
+- **Additional ML Training:**
+  - An XGBoost regression model is trained on the three form scores. Although the target is already computed from the form scores, this simulates a machine learning process, and the model is later used to update the predicted scores.
 
-Once your environment is set up, you can run the scripts from the project root:
+### d. Team Selection Optimization using PuLP
 
-1. **Data Scraping and Pre-processing:**
+- **Optimization Objective:**
+  - The goal is to maximize the total predicted fantasy points of the team. Additional multipliers are applied:
+    - **Captain:** Selected player’s score is counted fully extra.
+    - **Vice-Captain:** Selected player’s score gets a 0.5 extra multiplier.
+- **Decision Variables:**
+  - Binary decision variables are defined for:
+    - **Selection:** Whether a player is included in the team.
+    - **Captain:** Whether a player is chosen as captain.
+    - **Vice-Captain:** Whether a player is chosen as vice-captain.
+- **Constraints:**
+  - **Total Players:** Exactly 11 players must be selected.
+  - **Role Constraints:**
+    - At least 3 players must have an assigned role of `"BOWL"`.
+    - At least 3 players must have an assigned role of `"BAT"`.
+  - **Captain/Vice-Captain:**
+    - Exactly one captain and one vice-captain must be chosen.
+    - The captain and vice-captain must be among the selected players.
+    - A player cannot hold both roles simultaneously.
+- **Solving the Problem:**
+  - The PuLP linear programming problem is solved using the CBC solver.
+- **Output:**
 
-   Execute the scraping script:
+  - The final team is output with each player's predicted score, role, and designation if they are selected as captain or vice-captain.
 
-   ```bash
-   python src/scrapper.py
-   ```
+- **Example of Output:**
 
-   Then copy the processed data from `output` to `data`:
+  ```
+  Selected Team
 
-   ```bash
-   cp -r output/* data/
-   ```
+  93.66    BAT     Daryl Mitchell (Captain)
+  80.18    BAT     Fakhar Zaman (Vice Captain)
+  80.17    BAT     Will Young
+  76.07    BOWL    Haris Rauf
+  74.66    BAT     Babar Azam
+  74.27    BOWL    Matt Henry
+  72.40    BAT     Kane Williamson
+  72.14    BOWL    Shaheen Afridi
+  70.75    BAT     Glenn Phillips
+  70.61    BOWL    Abrar Ahmed
+  68.82    BAT     Tayyab Tahir
+  ```
 
-2. **Model Execution:**
+---
 
-   Run the desired model script (for example, `playing11-PuLP.py`):
+## Conclusion
 
-   ```bash
-   python src/playing11-PuLP.py
-   ```
+The system operates as follows:
 
-> **Reminder:** The machine learning model configurations (such as the number of previous months to consider, XGBoost parameters, and data source directories) are specified in the `config.yaml` file located in the root directory.
-
-# Scoring system
-
-## Batting
-
-| Action                                  | Points  | Who Receives the Points |
-| --------------------------------------- | ------- | ----------------------- |
-| **Run**                                 | +1 pt   | Batsman                 |
-| **Boundary Bonus**                      | +4 pts  | Batsman                 |
-| **Six Bonus**                           | +6 pts  | Batsman                 |
-| **25 Run Bonus**                        | +4 pts  | Batsman                 |
-| **50 Run Bonus**                        | +8 pts  | Batsman                 |
-| **75 Run Bonus**                        | +12 pts | Batsman                 |
-| **100 Run Bonus**                       | +16 pts | Batsman                 |
-| **125 Run Bonus**                       | +20 pts | Batsman                 |
-| **150 Run Bonus**                       | +24 pts | Batsman                 |
-| **Dismissal for a duck**                | -3 pts  | Batsman                 |
-| **Strike Rate** (min 20 balls)          |         |                         |
-| Above 140 runs per 100 balls            | +6 pts  | Batsman                 |
-| Between 120.01 - 140 runs per 100 balls | +4 pts  | Batsman                 |
-| Between 100 - 120 runs per 100 balls    | +2 pts  | Batsman                 |
-| Between 40 - 50 runs per 100 balls      | -2 pts  | Batsman                 |
-| Between 30 - 39.99 runs per 100 balls   | -4 pts  | Batsman                 |
-| Below 30 runs per 100 balls             | -6 pts  | Batsman                 |
-
-## Bowling
-
-| Action                                | Points  | Who Receives the Points |
-| ------------------------------------- | ------- | ----------------------- |
-| **Dot Ball** (Every 3 dot balls)      | +1 pt   | Bowler                  |
-| **Wicket** (Excluding Run Out)        | +25 pts | Bowler                  |
-| **Bonus (LBW/Bowled)**                | +8 pts  | Bowler                  |
-| **4 Wicket Bonus**                    | +4 pts  | Bowler                  |
-| **5 Wicket Bonus**                    | +8 pts  | Bowler                  |
-| **6 Wicket Bonus**                    | +12 pts | Bowler                  |
-| **Maiden Over**                       | +4 pts  | Bowler                  |
-| **Economy Rate Points** (min 5 overs) |         |                         |
-| Below 2.5 runs per over               | +6 pts  | Bowler                  |
-| Between 2.5 - 3.49 runs per over      | +4 pts  | Bowler                  |
-| Between 3.5 - 4.5 runs per over       | +2 pts  | Bowler                  |
-| Between 7 - 8 runs per over           | -2 pts  | Bowler                  |
-| Between 8.01 - 9 runs per over        | -4 pts  | Bowler                  |
-| Above 9 runs per over                 | -6 pts  | Bowler                  |
-
-## Fielding
-
-| Action                         | Points  | Who Receives the Points |
-| ------------------------------ | ------- | ----------------------- |
-| **Catch**                      | +8 pts  | Fielder                 |
-| **3 Catch Bonus**              | +4 pts  | Fielder                 |
-| **Stumping**                   | +12 pts | Wicketkeeper            |
-| **Run Out (Direct Hit)**       | +12 pts | Fielder                 |
-| **Run Out (Not a Direct Hit)** | +6 pts  | Fielder                 |
-
-## Additional Points
-
-| Action                                                          | Points | Who Receives the Points |
-| --------------------------------------------------------------- | ------ | ----------------------- |
-| **Captain Points**                                              | 2x     | Captain                 |
-| **Vice-Captain Points**                                         | 1.5x   | Vice-Captain            |
-| **In Announced Lineups**                                        | +4 pts | All Players             |
-| **Playing Substitute** (Concussion, X-Factor, or Impact Player) | +4 pts | Substitute Players      |
-
-## Other Important Notes
-
-- **Warm-up matches**: Fantasy points will follow the final scorecard, even if the chasing team bats more or stops early.
-- **Batting**: No bonus points for runs once the player reaches 150 runs. Only their best knock is counted.
-- **Fielding**: Players taking more than 3 catches will receive a 3 Catch Bonus (+4 pts).
-- **Substitutes**: Only Concussion, X-Factor, and Impact Player substitutes who play will earn 4 additional points.
-
-### Special Conditions:
-
-- **Strike Rate** and **Economy Rate** points are not awarded for players in _The Hundred_.
-- **Substitute Players**: If they replace an announced player, they get 0 points for being announced but earn points if they play.
+- **Player Form Calculation:**
+  - It starts by cleaning and merging match data, calculating recent performance scores using exponential decay and normalization, and finally producing composite scores for batting, bowling, and fielding.
+- **Fantasy Team Optimizer:**
+  - It takes these scores, merges them with current roster information, computes predicted fantasy points (with role assignments), and then optimizes team selection using a linear programming approach with constraints on team size, roles, and leadership positions (captain and vice-captain).
