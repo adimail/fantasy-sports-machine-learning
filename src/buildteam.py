@@ -1,10 +1,19 @@
 import pandas as pd
-import numpy as np
 import pulp
+import sys
+import yaml
 
 
 class FantasyTeamOptimizer:
     def __init__(self):
+        try:
+            with open("config.yaml", "r") as stream:
+                config = yaml.safe_load(stream)
+        except Exception as e:
+            print(f"Error reading YAML config file: {e}")
+            sys.exit(1)
+
+        self.config = config
         self.evaluation_df = None
         self.roster_df = None
         self.merged_df = None
@@ -12,8 +21,8 @@ class FantasyTeamOptimizer:
     def load_data(self):
         """Load evaluation and roster data from CSV files."""
         print("Loading data...")
-        self.evaluation_df = pd.read_csv("data/recent_player_form.csv")
-        self.roster_df = pd.read_csv("Downloads/SquadPlayerNames.csv")
+        self.evaluation_df = pd.read_csv(self.config["data"]["player_form"])
+        self.roster_df = pd.read_csv(self.config["data"]["squad_input"])
         print("Data loaded successfully.")
 
     def filter_and_merge(self):
@@ -22,39 +31,35 @@ class FantasyTeamOptimizer:
         map the player types to match the evaluation file,
         and merge with evaluation data using player name and type.
         """
-        # Filter only PLAYING players from roster (using case-insensitive match)
-        roster_filtered = self.roster_df[
-            self.roster_df["IsPlaying"].str.upper() == "PLAYING"
-        ].copy()
-
-        # Rename "Player Name" to "Player" for merging purposes
-        roster_filtered.rename(columns={"Player Name": "Player"}, inplace=True)
-
-        # Use only the required columns
-        roster_filtered = roster_filtered[
-            ["Player Type", "Player", "IsPlaying", "Team"]
-        ]
-
-        # Map roster player types to match evaluation file values.
-        # For example, convert "All Rounder" to "ALL", "Batsmen" to "BAT",
-        # "Bowlers" to "BOWL", and treat "Wicket Keeper" as a batsman ("BAT").
         type_mapping = {
             "All Rounder": "ALL",
             "Batsmen": "BAT",
             "Bowlers": "BOWL",
             "Wicket Keeper": "Keeper",
         }
+
+        roster_filtered = self.roster_df[
+            self.roster_df["IsPlaying"].str.upper() == "PLAYING"
+        ].copy()
+        roster_filtered.rename(columns={"Player Name": "Player"}, inplace=True)
         roster_filtered["Player Type"] = roster_filtered["Player Type"].map(
             type_mapping
         )
+        roster_filtered = roster_filtered[
+            ["Player Type", "Player", "IsPlaying", "Team"]
+        ]
 
-        # Merge on "Player" and "Player Type"
         self.merged_df = pd.merge(
             roster_filtered,
             self.evaluation_df,
             on=["Player", "Player Type"],
             how="inner",
+            suffixes=("", "_eval"),
         )
+
+        if "Team_eval" in self.merged_df.columns:
+            self.merged_df.drop(columns=["Team_eval"], inplace=True)
+
         print(f"Merged data has {self.merged_df.shape[0]} players.")
         if self.merged_df.empty:
             print(
@@ -164,6 +169,7 @@ class FantasyTeamOptimizer:
         team = []
         for idx, row in self.merged_df.iterrows():
             p = row["Player"]
+            t = row["Team"]
             if pulp.value(selection[p]) == 1:
                 role = row["AssignedRole"]
                 marker = ""
@@ -171,7 +177,7 @@ class FantasyTeamOptimizer:
                     marker = "(Captain)"
                 elif pulp.value(vice_captain[p]) == 1:
                     marker = "(Vice Captain)"
-                team.append((p, role, marker, row["Predicted"]))
+                team.append((p, role, marker, row["Predicted"], t))
         return team
 
 
@@ -183,8 +189,8 @@ def BuildTeam():
     team = optimizer.optimize_team()
 
     print("\n\nSelected Team\n")
-    for player, role, marker, score in team:
-        print(f"{score:.2f} \t {role} \t {player} {marker}")
+    for player, role, marker, score, t in team:
+        print(f"{score:.2f} \t {role} \t {t} \t {player} {marker}")
 
 
 if __name__ == "__main__":

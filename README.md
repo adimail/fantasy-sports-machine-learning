@@ -2,6 +2,31 @@
 
 ![Script Preview](script.jpeg)
 
+## Getting started:
+
+First, create a virtual environment and install the required packages:
+
+```sh
+python3 -m venv .venv
+source .venv/bin/activate   # On Windows: .venv\Scripts\activate
+pip3 install --no-cache-dir -r requirements.txt
+```
+
+Then, run the main script:
+
+```sh
+python main.py
+```
+
+Alternatively, you can use Docker to build and run the project:
+
+```sh
+docker build -t fantasy-team-builder .
+docker run -it --rm fantasy-team-builder
+```
+
+## Algorithm
+
 This system is composed of two primary modules:
 
 1. **Player Form Calculation** – Computes recent performance metrics (form scores) for each player based on historical match data.

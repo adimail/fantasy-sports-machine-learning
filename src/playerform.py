@@ -42,12 +42,12 @@ class PlayerForm:
 
         self.config = config
 
-        self.bowling_file = config["player_form"]["bowling_file"]
-        self.batting_file = config["player_form"]["batting_file"]
-        self.fielding_file = config["player_form"]["fielding_file"]
-        self.output_file = config["player_form"]["output_file"]
-        self.previous_months = config["player_form"]["previous_months"]
-        self.decay_rate = config["player_form"]["decay_rate"]
+        self.bowling_file = config["data"]["bowling_file"]
+        self.batting_file = config["data"]["batting_file"]
+        self.fielding_file = config["data"]["fielding_file"]
+        self.output_file = config["data"]["output_file"]
+        self.previous_months = config["data"]["previous_months"]
+        self.decay_rate = config["data"]["decay_rate"]
         self.key_cols = ["Player", "Team", "Start Date", "End Date", "Mat"]
 
     def load_data(self):
@@ -103,7 +103,7 @@ class PlayerForm:
         Filters the DataFrame to retain only rows for players present in the squad CSV file.
         It also reports players from the squad CSV file that are missing in the DataFrame.
 
-        The CSV file (specified by self.config["player_form"]["squad_file"]) is expected to have the following columns:
+        The CSV file (specified by self.config["data"]["squad_file"]) is expected to have the following columns:
             Credits, Player Type, Player Name, Team, ESPN player name
 
         After filtering, the "Player" column in the filtered DataFrame is updated with the full name
@@ -116,7 +116,7 @@ class PlayerForm:
             pd.DataFrame: The filtered DataFrame containing only valid players with updated names and additional columns.
         """
         try:
-            squad_df = pd.read_csv(self.config["player_form"]["squad_file"])
+            squad_df = pd.read_csv(self.config["data"]["squad_file"])
         except Exception as e:
             print(Fore.RED + f"Error reading squad CSV file: {e}")
             sys.exit(1)

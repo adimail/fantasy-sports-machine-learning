@@ -3,99 +3,16 @@ base:
   team: Sinister 6
 
 data:
-  # Raw data
-  raw_json_folder: odis_json
-  raw_data_csv: data/players.csv
-  raw_maths_csv: data/mathes.csv
-
-  # Web scrapper output
   web_scrapper_output: output
-
-player_form:
   batting_file: "data/batting_data.csv"
   bowling_file: "data/bowling_data.csv"
   fielding_file: "data/fielding_data.csv"
   output_file: "data/recent_player_form.csv"
   squad_file: "data/squad.csv"
+  player_form: "data/recent_player_form.csv"
+  squad_input: "Downloads/SquadPlayerNames.csv"
   previous_months: 20
   decay_rate: 0.1
-
-common:
-  data_paths: &common_data_paths
-    batting: data/batting_data.csv
-    bowling: data/bowling_data.csv
-    fielding: data/fielding_data.csv
-    form: data/recent_player_form.csv
-    roster: input.csv
-
-  xgb_params: &common_xgb_params
-    n_estimators: 200
-    max_depth: 5
-    learning_rate: 0.1
-
-  team_rules: &common_team_rules
-    salary_cap: 1000000
-    required_roles:
-      Batsman: [3, 5]
-      Bowler: [3, 5]
-      AllRounder: [1, 3]
-      WicketKeeper: [1, 1]
-
-model:
-  PuLP:
-    data_paths: *common_data_paths
-    model_params:
-      n_estimators: 100
-      max_depth: 5
-      learning_rate: 0.1
-      random_state: 42
-      verbosity: 2
-    feature_columns:
-      - Batting Fantasy
-      - Bowling Fantasy
-      - Fielding Fantasy
-      - Batting Form
-      - Bowling Form
-      - Fielding Form
-      - Variability
-    param_grid:
-      n_estimators: [50, 100, 150]
-      max_depth: [3, 5, 7]
-      learning_rate: [0.05, 0.1]
-    team_rules:
-      min_batsmen: 4
-      min_bowlers: 4
-      min_wicketkeepers: 1
-      min_allrounders: 2
-      max_players_per_team: 7
-      risk_weight: 0.1
-      synergy_weight: 2.0
-    do_tuning: true
-    do_explain: false
-    do_backtest: true
-
-  composite:
-    data_paths: *common_data_paths
-    scoring_weights:
-      historical: 0.5
-      form: 0.5
-
-  optimization_config:
-    data_paths: *common_data_paths
-    feature_columns:
-      numeric: ['Batting_Avg', 'Bowling_Econ', 'Recent_Form']
-      categorical: ['Role', 'Venue_Type', 'Opposition_Strength']
-    team_rules: *common_team_rules
-    xgb_params: *common_xgb_params
-
-  xgboost:
-    data_paths: *common_data_paths
-    feature_columns:
-      numeric: []
-      categorical: [Role, Venue_Type, Opposition_Strength]
-    team_rules: *common_team_rules
-    xgb_params: *common_xgb_params
-
 
 # champions_trophy_2025_teams
 teams:
