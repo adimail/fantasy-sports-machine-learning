@@ -34,9 +34,9 @@ def main(build, updateplayerform, option):
 
         if "SquadPlayerNames.csv" in files:
             print(f"{Fore.GREEN}SquadPlayerNames.csv found.{Style.RESET_ALL}")
-            unique_teams = summarize_squad_data("Downloads/SquadPlayerNames.csv")
-            if len(unique_teams) >= 2:
-                team_option_text = f"Build Team {unique_teams[0]} Vs {unique_teams[1]}"
+            teams = summarize_squad_data("Downloads/SquadPlayerNames.csv")
+            if len(teams) >= 2:
+                team_option_text = f"Build Team for {teams[0]} vs {teams[1]}"
             else:
                 team_option_text = "Build Team"
         else:
@@ -89,7 +89,7 @@ def main(build, updateplayerform, option):
             sys.exit(1)
 
     else:
-        print(f"{Fore.YELLOW}Module not completed yet{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}Invalid option{Style.RESET_ALL}")
 
 
 if __name__ == "__main__":

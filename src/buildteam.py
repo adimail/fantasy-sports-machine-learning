@@ -21,7 +21,7 @@ class FantasyTeamOptimizer:
     def load_data(self):
         """Load evaluation and roster data from CSV files."""
         print("Loading data...")
-        self.evaluation_df = pd.read_csv("output/recent_player_form.csv")
+        self.evaluation_df = pd.read_csv("data/recent_player_form.csv")
         self.roster_df = pd.read_csv("Downloads/SquadPlayerNames.csv")
         print("Data loaded successfully.")
 
