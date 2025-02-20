@@ -6,6 +6,7 @@ import yaml
 
 class FantasyTeamOptimizer:
     def __init__(self):
+        """Initialize configuration and placeholders for dataframes."""
         try:
             with open("config.yaml", "r") as stream:
                 config = yaml.safe_load(stream)
@@ -19,10 +20,8 @@ class FantasyTeamOptimizer:
 
     def load_data(self):
         """Load evaluation and roster data from CSV files."""
-        print("\nLoading data...")
         self.evaluation_df = pd.read_csv(self.config["data"]["player_form"])
         self.roster_df = pd.read_csv(self.config["data"]["squad_input"])
-        print("Data loaded successfully.")
 
     def filter_and_merge(self):
         """
@@ -33,9 +32,8 @@ class FantasyTeamOptimizer:
             self.roster_df["IsPlaying"].str.upper() == "PLAYING"
         ].copy()
         roster_filtered.rename(columns={"Player Name": "Player"}, inplace=True)
-        roster_filtered = roster_filtered[
-            ["Player Type", "Player", "IsPlaying", "Team"]
-        ]
+        roster_filtered = roster_filtered[["Player Type", "Player", "Team"]]
+
         self.merged_df = pd.merge(
             roster_filtered,
             self.evaluation_df,
@@ -43,137 +41,127 @@ class FantasyTeamOptimizer:
             how="inner",
             suffixes=("", "_eval"),
         )
-        print(f"Merged data has {self.merged_df.shape[0]} players.")
-        print("Sample merged data:")
-        print(self.merged_df.head())
         if self.merged_df.empty:
             print(
-                "Warning: Merged DataFrame is empty. Please check the player names and types between CSV files."
+                "Warning: Merged DataFrame is empty. Please verify that the player names and types match between the input files."
             )
 
-    def compute_target_and_role(self):
-        """
-        For each player, compute the predicted fantasy points and assign a role for constraint purposes.
-        - For players with type "BOWL": use Bowling Form and assign role "BOWL".
-        - For players with type "ALL": use the maximum among Batting Form, Bowling Form, and Fielding Form.
-          * If Batting Form is highest, assign role "BAT".
-          * If Bowling Form is highest, assign role "BOWL".
-          * If Fielding Form is highest, assign role "BAT" (defaulting to batsman).
-        - For players with type "BAT": use Batting Form and assign role "BAT".
-        """
-        if self.merged_df.empty:
-            print("Merged DataFrame is empty. Skipping compute_target_and_role.")
-            return
-
-        def compute(row):
-            ptype = row["Player Type"].upper()
-            if ptype == "BOWL":
-                return row["Bowling Form"], "BOWL"
-            elif ptype == "ALL":
-                forms = {
-                    "BAT": row["Batting Form"],
-                    "BOWL": row["Bowling Form"],
-                    "FIELD": row["Fielding Form"],
-                }
-                best_category = max(forms, key=forms.get)
-                assigned_role = best_category if best_category != "FIELD" else "BAT"
-                return forms[best_category], assigned_role
-            elif ptype == "BAT":
-                return row["Batting Form"], "BAT"
-            else:
-                return row["Batting Form"], "BAT"
-
-        self.merged_df[["Predicted", "AssignedRole"]] = self.merged_df.apply(
-            lambda row: pd.Series(compute(row)), axis=1
+        # Standardize role names to match optimization constraints.
+        # For example, mapping: "ALL" -> "All Rounder", "BOWL" -> "Bowler", "BAT" -> "Batsmen", "WK" -> "Wicket Keeper"
+        role_mapping = {
+            "ALL": "All Rounder",
+            "BOWL": "Bowler",
+            "BAT": "Batsmen",
+            "WK": "Wicket Keeper",
+        }
+        self.merged_df["Player Type"] = self.merged_df["Player Type"].replace(
+            role_mapping
         )
-        print("Computed predicted scores and assigned roles.")
-        print("Role distribution after computation:")
-        print(self.merged_df["AssignedRole"].value_counts())
+        self.merged_df.drop(
+            columns=["Team_eval", "Credits"], inplace=True, errors="ignore"
+        )
+        self.merged_df = self.merged_df.rename(columns={"Player Type": "Role"})
+        print("\nRole counts after normalization:")
+        print(self.merged_df["Role"].value_counts())
+
+    def calculate_score(self, row):
+        """
+        Calculate a player's score based on their role:
+          - Batsmen: Score = batter_weight * Batting Form
+          - Bowler: Score = bowler_weight * Bowling Form
+          - All Rounder: Score = allrounder_weight * ((Batting Form + Bowling Form) / 2)
+          - Wicket Keeper: Score = keeper_weight * Batting Form
+        """
+        role = row["Role"].strip()
+        if role == "Batsmen":
+            return self.config["algorithm"]["batter_weight"] * row["Batting Form"]
+        elif role == "Bowler":
+            return self.config["algorithm"]["bowler_weight"] * row["Bowling Form"]
+        elif role == "All Rounder":
+            return self.config["algorithm"]["allrounder_weight"] * (
+                (row["Batting Form"] + row["Bowling Form"]) / 2
+            )
+        elif role == "Wicket Keeper":
+            return self.config["algorithm"]["keeper_weight"] * row["Batting Form"]
+        else:
+            return 0
+
+    def compute_target_and_role(self):
+        """Compute the role-based score for each player."""
+        self.merged_df["Score"] = self.merged_df.apply(self.calculate_score, axis=1)
 
     def optimize_team(self):
         """
-        Optimize team selection using PuLP.
-        The objective is to maximize the total predicted fantasy points, applying multipliers for
-        captain (full extra points) and vice-captain (0.5 extra points).
+        Optimize fantasy team selection from the merged data.
+
         Constraints:
-          - Exactly 11 players selected.
-          - At least 3 players assigned as bowlers.
-          - At least 3 players assigned as batsmen.
-          - Exactly one captain and one vice-captain.
+          - Exactly total_players (default 11) are selected.
+          - At least 4 Batsmen.
+          - At least 5 players with bowling contributions (Bowler or All Rounder).
+          - At least 3 Bowler.
+          - At least 1 Wicket Keeper.
+          - At least 2 All Rounder.
+
+        Returns:
+            A DataFrame of selected players with their computed Score and assigned team role (e.g., Captain, Vice Captain).
         """
-        if self.merged_df.empty:
-            print("Merged DataFrame is empty. Cannot optimize team.")
-            return []
+        team_df = self.merged_df.copy()
 
-        print("Starting team optimization...")
-        problem = pulp.LpProblem("OptimalTeamSelection", pulp.LpMaximize)
-        players = list(self.merged_df["Player"])
-        selection = pulp.LpVariable.dicts("Select", players, cat="Binary")
-        captain = pulp.LpVariable.dicts("Captain", players, cat="Binary")
-        vice_captain = pulp.LpVariable.dicts("ViceCaptain", players, cat="Binary")
+        prob = pulp.LpProblem("FantasyTeam", pulp.LpMaximize)
+        players = team_df.index.tolist()
+        x = pulp.LpVariable.dicts("player", players, cat="Binary")
+        prob += (
+            pulp.lpSum([x[i] * team_df.loc[i, "Score"] for i in players]),
+            "Total_Score",
+        )
+        prob += pulp.lpSum([x[i] for i in players]) == 11, "Total_Players"
 
-        objective_terms = []
-        for idx, row in self.merged_df.iterrows():
-            p = row["Player"]
-            score = row["Predicted"]
-            term = score * (selection[p] + captain[p] + 0.5 * vice_captain[p])
-            objective_terms.append(term)
-        problem += pulp.lpSum(objective_terms)
+        batter_indices = team_df[team_df["Role"] == "Batsmen"].index
+        prob += pulp.lpSum([x[i] for i in batter_indices]) >= 4, "Min_Batsmen"
 
-        problem += pulp.lpSum([selection[p] for p in players]) == 11, "TotalPlayers"
-        problem += pulp.lpSum([captain[p] for p in players]) == 1, "OneCaptain"
-        problem += pulp.lpSum([vice_captain[p] for p in players]) == 1, "OneViceCaptain"
+        bowling_indices = team_df[team_df["Role"].isin(["Bowler", "All Rounder"])].index
+        prob += (
+            pulp.lpSum([x[i] for i in bowling_indices]) >= 5,
+            "Min_Bowling_Contributors",
+        )
 
-        for p in players:
-            problem += captain[p] <= selection[p], f"CaptainSelected_{p}"
-            problem += vice_captain[p] <= selection[p], f"ViceCaptainSelected_{p}"
-            problem += captain[p] + vice_captain[p] <= selection[p], f"NoDualRole_{p}"
+        pure_bowler_indices = team_df[team_df["Role"] == "Bowler"].index
+        prob += pulp.lpSum([x[i] for i in pure_bowler_indices]) >= 3, "Min_Bowlers"
 
-        bowlers = self.merged_df[self.merged_df["AssignedRole"] == "BOWL"][
-            "Player"
-        ].tolist()
-        problem += pulp.lpSum([selection[p] for p in bowlers]) >= 3, "MinBowlers"
-        batsmen = self.merged_df[self.merged_df["AssignedRole"] == "BAT"][
-            "Player"
-        ].tolist()
-        problem += pulp.lpSum([selection[p] for p in batsmen]) >= 3, "MinBatsmen"
+        keeper_indices = team_df[team_df["Role"] == "Wicket Keeper"].index
+        prob += pulp.lpSum([x[i] for i in keeper_indices]) >= 1, "Min_WicketKeepers"
 
-        print("Solving optimization problem...")
-        problem.solve(pulp.PULP_CBC_CMD(msg=False))
-        print("Optimization status:", pulp.LpStatus[problem.status])
+        allrounder_indices = team_df[team_df["Role"] == "All Rounder"].index
+        prob += pulp.lpSum([x[i] for i in allrounder_indices]) >= 2, "Min_AllRounders"
 
-        # Log variable values for each player
-        print("\nVariable values (selected, captain, vice-captain):")
-        for p in players:
-            print(
-                f"{p}: Selected={pulp.value(selection[p])}, Captain={pulp.value(captain[p])}, ViceCaptain={pulp.value(vice_captain[p])}"
-            )
+        prob.solve(pulp.PULP_CBC_CMD(msg=0))
+        print(f"\n\nLP Status: {pulp.LpStatus[prob.status]}")
+        if pulp.LpStatus[prob.status] != "Optimal":
+            print("No optimal solution found!")
+            return None
 
-        self.merged_df = self.merged_df.sort_values("Predicted", ascending=False)
-        team = []
-        for idx, row in self.merged_df.iterrows():
-            p = row["Player"]
-            t = row["Team"]
-            if pulp.value(selection[p]) == 1:
-                role = row["AssignedRole"]
-                marker = ""
-                if pulp.value(captain[p]) == 1:
-                    marker = "(Captain)"
-                elif pulp.value(vice_captain[p]) == 1:
-                    marker = "(Vice Captain)"
-                team.append((p, role, marker, row["Predicted"], t))
+        selected = [i for i in players if pulp.value(x[i]) == 1]
+        team = team_df.loc[selected].copy()
+        team.sort_values("Score", ascending=False, inplace=True)
+        team["Position"] = "Player"
+        if len(team) > 0:
+            team.iloc[0, team.columns.get_loc("Position")] = "Captain"
+        if len(team) > 1:
+            team.iloc[1, team.columns.get_loc("Position")] = "Vice Captain"
+
+        team.set_index("Player", inplace=True)
         return team
 
 
 def BuildTeam():
+    """Build the fantasy team by running the optimizer steps sequentially."""
     optimizer = FantasyTeamOptimizer()
     optimizer.load_data()
     optimizer.filter_and_merge()
     optimizer.compute_target_and_role()
     team = optimizer.optimize_team()
-    print("\n\nSelected Team\n")
-    for player, role, marker, score, t in team:
-        print(f"{score:.2f} \t {role} \t {t} \t {player} {marker}")
+    print("\nSelected Team\n")
+    print(team)
 
 
 if __name__ == "__main__":

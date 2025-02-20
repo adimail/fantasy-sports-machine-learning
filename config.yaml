@@ -14,6 +14,12 @@ data:
   previous_months: 20
   decay_rate: 0.1
 
+algorithm:
+  batter_weight: 1.0
+  bowler_weight: 1.0
+  allrounder_weight: 1.0
+  keeper_weight: 1.0
+
 # champions_trophy_2025_teams
 teams:
   - Bangladesh
