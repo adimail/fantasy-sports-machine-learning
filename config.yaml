@@ -20,6 +20,12 @@ algorithm:
   allrounder_weight: 1.0
   keeper_weight: 1.0
 
+ga:
+  population_size: 50
+  generations: 100
+  tournament_size: 3
+  mutation_rate: 0.1
+
 # champions_trophy_2025_teams
 teams:
   - Bangladesh

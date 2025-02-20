@@ -5,6 +5,7 @@ import pandas as pd
 from colorama import Fore, Style, init
 from src.playerform import UpdatePlayerForm
 from src.buildteam import BuildTeam
+from src.geneticalgorithm import BuildTeam as BuildGeneticTeam
 from src.update import update_player_data_main
 
 init(autoreset=True)
@@ -22,11 +23,14 @@ def summarize_squad_data(file_path):
 
 
 @click.command()
-@click.option("--build", is_flag=True, help="Build the team.")
+@click.option("--build", is_flag=True, help="Build the team using LP.")
+@click.option(
+    "--genetic", is_flag=True, help="Use genetic algorithm for team selection."
+)
 @click.option("--updateplayerform", is_flag=True, help="Update player form.")
 @click.option("--update", type=int, help="Update player data for the last n months.")
 @click.argument("option", required=False, type=int)
-def main(build, updateplayerform, update, option):
+def main(build, genetic, updateplayerform, update, option):
     if update is not None:
         try:
             print(
@@ -58,7 +62,10 @@ def main(build, updateplayerform, update, option):
 
     if build:
         try:
-            BuildTeam()
+            if genetic:
+                BuildGeneticTeam()
+            else:
+                BuildTeam()
             return
         except KeyboardInterrupt:
             print(f"\n{Fore.RED}Operation cancelled by user{Style.RESET_ALL}")
@@ -73,22 +80,47 @@ def main(build, updateplayerform, update, option):
             sys.exit(1)
 
     if option is None and not build and not updateplayerform:
-        option = click.prompt(
-            f"\n{Fore.CYAN}Choose an option:\n1. {team_option_text}\n2. Update player form\n\n{Style.RESET_ALL}\n\nEnter your choice",
-            type=int,
+        print(f"\n{Fore.CYAN}Choose an option:")
+        print(
+            f"{Fore.LIGHTGREEN_EX}1. Run Full Pipeline (Update Data, Update Player Form, Build Team using LP)"
         )
+        print("2. Build Team using Linear Programming")
+        print("3. Build Team using Genetic Programming")
+        print("4. Update Player Form")
+        print("5. Update Player Data from recent month")
+        option = click.prompt(f"\nEnter your choice (1-5):{Style.RESET_ALL}", type=int)
 
     print("\n" + "-" * 50 + "\n")
 
     if option == 1:
         try:
+            update_player_data_main(1)
+            UpdatePlayerForm()
             BuildTeam()
         except KeyboardInterrupt:
             print(f"\n{Fore.RED}Operation cancelled by user{Style.RESET_ALL}")
             sys.exit(1)
     elif option == 2:
         try:
+            BuildTeam()
+        except KeyboardInterrupt:
+            print(f"\n{Fore.RED}Operation cancelled by user{Style.RESET_ALL}")
+            sys.exit(1)
+    elif option == 3:
+        try:
+            BuildGeneticTeam()
+        except KeyboardInterrupt:
+            print(f"\n{Fore.RED}Operation cancelled by user{Style.RESET_ALL}")
+            sys.exit(1)
+    elif option == 4:
+        try:
             UpdatePlayerForm()
+        except KeyboardInterrupt:
+            print(f"\n{Fore.RED}Operation cancelled by user{Style.RESET_ALL}")
+            sys.exit(1)
+    elif option == 5:
+        try:
+            update_player_data_main(1)
         except KeyboardInterrupt:
             print(f"\n{Fore.RED}Operation cancelled by user{Style.RESET_ALL}")
             sys.exit(1)
