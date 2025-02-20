@@ -131,10 +131,22 @@ class FantasyTeamOptimizer:
         prob = pulp.LpProblem("FantasyTeam", pulp.LpMaximize)
         players = team_df.index.tolist()
         x = pulp.LpVariable.dicts("player", players, cat="Binary")
+        c = pulp.LpVariable.dicts("captain", players, cat="Binary")
+        v = pulp.LpVariable.dicts("vice_captain", players, cat="Binary")
+
+        # Objective: Maximize total score including captain and vice-captain bonuses
         prob += (
-            pulp.lpSum([x[i] * team_df.loc[i, "Score"] for i in players]),
-            "Total_Score",
+            pulp.lpSum(
+                [
+                    team_df.loc[i, "Score"] * x[i]
+                    + (2.0 - 1) * team_df.loc[i, "Score"] * c[i]
+                    + (1.5 - 1) * team_df.loc[i, "Score"] * v[i]
+                    for i in players
+                ]
+            ),
+            "Total_Score_with_Bonuses",
         )
+
         prob += pulp.lpSum([x[i] for i in players]) == 11, "Total_Players"
 
         batter_indices = team_df[team_df["Role"] == "Batsmen"].index
@@ -154,6 +166,13 @@ class FantasyTeamOptimizer:
 
         allrounder_indices = team_df[team_df["Role"] == "All Rounder"].index
         prob += pulp.lpSum([x[i] for i in allrounder_indices]) >= 2, "Min_AllRounders"
+
+        prob += pulp.lpSum([c[i] for i in players]) == 1, "One_Captain"
+        prob += pulp.lpSum([v[i] for i in players]) == 1, "One_ViceCaptain"
+        for i in players:
+            prob += c[i] <= x[i], f"Captain_Selected_{i}"
+            prob += v[i] <= x[i], f"ViceCaptain_Selected_{i}"
+            prob += c[i] + v[i] <= 1, f"No_Dual_Role_{i}"
 
         prob.solve(pulp.PULP_CBC_CMD(msg=0))
         logger.info("LP Status: %s", pulp.LpStatus[prob.status])
