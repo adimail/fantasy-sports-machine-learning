@@ -1,4 +1,5 @@
-# Updating th eplayer form
+# ==============================================================================
+# Updating the Player Form
 #
 # Author: Aditya Godse
 #
@@ -6,14 +7,22 @@
 # filters only players that exist in the squad list, and calculates the recent form
 # scores for batting, bowling, and fielding based on the recent matches.
 #
-# =================================================================================
+# Columns expected:
+#   Batting: Player,Mat,Inns,NO,Runs,HS,Ave,BF,SR,100,50,0,4s,6s,Team,Start Date,End Date
+#   Bowling: Player,Mat,Inns,Overs,Mdns,Runs,Wkts,BBI,Ave,Econ,SR,4,5,Team,Start Date,End Date
+#   Fielding: Player,Mat,Inns,Dis,Ct,St,Ct Wk,Ct Fi,MD,D/I,Team,Start Date,End Date
+#
+# Usage:
+#   python3 -m src.playerform
+#
+# ==============================================================================
 
 import sys
 import os
 import pandas as pd
 import numpy as np
 import yaml
-from scipy.stats import norm
+from scipy.stats import percentileofscore
 from colorama import Fore, init
 
 init(autoreset=True)
@@ -164,39 +173,73 @@ class PlayerForm:
         """
         Calculates recent form scores for batting, bowling, and fielding for each player
         based on their matches in the past `previous_months` months using exponential decay weights
-        and normalization based on the distribution of performance among players.
+        and normalization based on the relative ranking (percentile) of performance among players.
 
-        This approach computes an exponentially weighted moving average (EWMA) for each key metric,
-        then normalizes each player's EWMA to a 0-100 score via the CDF of the standard normal distribution,
-        using the global mean and standard deviation across all players. Finally, a composite score is computed
-        for batting, bowling, and fielding via a weighted sum.
+        The EWMA for each metric is computed per player with an exponential decay weight.
+        Then, each metric is normalized via percentile ranking (0-100). Finally, composite form scores
+        are computed using format-specific weights for batting and bowling (fielding remains unchanged).
 
         Parameters:
             player_df (pd.DataFrame): DataFrame containing player match performance.
 
         Returns:
             pd.DataFrame: Aggregated form scores per player with columns 'Player', 'Batting Form',
-                          'Bowling Form', and 'Fielding Form'.
+                          'Bowling Form', 'Fielding Form', and metadata columns.
         """
-        # Ensure End Date is in datetime format and filter by the cutoff date.
         player_df["End Date"] = pd.to_datetime(player_df["End Date"])
         cutoff_date = pd.to_datetime("today") - pd.DateOffset(
             months=self.previous_months
         )
         recent_data = player_df[player_df["End Date"] >= cutoff_date].copy()
-
-        # Sort matches for each player by End Date descending and assign match indices.
         recent_data.sort_values(
             by=["Player", "End Date"], ascending=[True, False], inplace=True
         )
         recent_data["match_index"] = recent_data.groupby("Player").cumcount()
-
-        # Compute exponential decay weights (more weight to recent matches).
         recent_data["weight"] = np.exp(-self.decay_rate * recent_data["match_index"])
 
-        # Helper function: compute the EWMA for a given column for each player.
         def compute_ewma(g, col):
             return np.average(g[col].fillna(0), weights=g["weight"])
+
+        def normalize_series(series):
+            return series.apply(lambda x: percentileofscore(series.dropna(), x))
+
+        format_weights = {
+            "T20": {
+                "batting": {
+                    "bat runs": 0.3,
+                    "bat ave": 0.1,
+                    "bat sr": 0.4,
+                    "bat 4s": 0.1,
+                    "bat 6s": 0.1,
+                },
+                "bowling": {"bowl wkts": 0.5, "bowl ave": 0.2, "bowl econ": 0.3},
+            },
+            "ODI": {
+                "batting": {
+                    "bat runs": 0.35,
+                    "bat ave": 0.25,
+                    "bat sr": 0.2,
+                    "bat 4s": 0.1,
+                    "bat 6s": 0.1,
+                },
+                "bowling": {"bowl wkts": 0.6, "bowl ave": 0.2, "bowl econ": 0.2},
+            },
+            "Test": {
+                "batting": {
+                    "bat runs": 0.3,
+                    "bat ave": 0.4,
+                    "bat sr": 0.1,
+                    "bat 4s": 0.1,
+                    "bat 6s": 0.1,
+                },
+                "bowling": {"bowl wkts": 0.5, "bowl ave": 0.3, "bowl econ": 0.2},
+            },
+        }
+
+        format_type = "ODI"
+
+        batting_weights = format_weights[format_type]["batting"]
+        bowling_weights = format_weights[format_type]["bowling"]
 
         # ------------------
         # Batting Form
@@ -208,24 +251,16 @@ class PlayerForm:
             ).apply(lambda g: compute_ewma(g, metric), include_groups=False)
         batting_df = pd.DataFrame(batting_metrics).reset_index()
 
-        # Normalize each metric based on the global distribution.
-        def normalize_series(series):
-            mean_val = series.mean()
-            std_val = series.std()
-            if std_val == 0:
-                return pd.Series(100, index=series.index)
-            return series.apply(lambda x: norm.cdf((x - mean_val) / std_val) * 100)
-
         batting_norm = {}
         for col in ["bat runs", "bat ave", "bat sr", "bat 4s", "bat 6s"]:
             batting_norm[col] = normalize_series(batting_df[col])
 
         batting_df["Batting Form"] = (
-            0.4 * batting_norm["bat runs"]
-            + 0.2 * batting_norm["bat ave"]
-            + 0.2 * batting_norm["bat sr"]
-            + 0.1 * batting_norm["bat 4s"]
-            + 0.1 * batting_norm["bat 6s"]
+            batting_weights["bat runs"] * batting_norm["bat runs"]
+            + batting_weights["bat ave"] * batting_norm["bat ave"]
+            + batting_weights["bat sr"] * batting_norm["bat sr"]
+            + batting_weights["bat 4s"] * batting_norm["bat 4s"]
+            + batting_weights["bat 6s"] * batting_norm["bat 6s"]
         )
 
         # ------------------
@@ -244,9 +279,9 @@ class PlayerForm:
         bowling_norm["bowl econ"] = 100 - normalize_series(bowling_df["bowl econ"])
 
         bowling_df["Bowling Form"] = (
-            0.65 * bowling_norm["bowl wkts"]
-            + 0.15 * bowling_norm["bowl ave"]
-            + 0.20 * bowling_norm["bowl econ"]
+            bowling_weights["bowl wkts"] * bowling_norm["bowl wkts"]
+            + bowling_weights["bowl ave"] * bowling_norm["bowl ave"]
+            + bowling_weights["bowl econ"] * bowling_norm["bowl econ"]
         )
 
         # ------------------
@@ -281,13 +316,7 @@ class PlayerForm:
 
         player_months = (
             recent_data.groupby(["Player", "Team"])["End Date"]
-            .agg(
-                lambda x: (
-                    (x.max() - x.min()).days // 30,
-                    x.max(),  # Latest date
-                    x.min(),  # Oldest date
-                )
-            )
+            .agg(lambda x: ((x.max() - x.min()).days // 30, x.max(), x.min()))
             .reset_index()
         )
         player_months.rename(columns={"End Date": "Months of Data"}, inplace=True)

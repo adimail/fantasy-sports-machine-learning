@@ -2,6 +2,10 @@ import pandas as pd
 import pulp
 import sys
 import yaml
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class FantasyTeamOptimizer:
@@ -61,8 +65,6 @@ class FantasyTeamOptimizer:
             columns=["Team_eval", "Credits"], inplace=True, errors="ignore"
         )
         self.merged_df = self.merged_df.rename(columns={"Player Type": "Role"})
-        print("\nRole counts after normalization:")
-        print(self.merged_df["Role"].value_counts())
 
     def calculate_score(self, row):
         """
@@ -107,6 +109,25 @@ class FantasyTeamOptimizer:
         """
         team_df = self.merged_df.copy()
 
+        print()
+
+        role_counts = team_df["Role"].value_counts()
+        logger.info("Available players by role: %s", role_counts.to_dict())
+        if role_counts.get("Batsmen", 0) < 4:
+            logger.warning("Fewer than 4 Batsmen available. Optimization may fail.")
+        if role_counts.get("Bowler", 0) < 3:
+            logger.warning("Fewer than 3 Bowlers available. Optimization may fail.")
+        if role_counts.get("Wicket Keeper", 0) < 1:
+            logger.warning("No Wicket Keeper available. Optimization may fail.")
+        if role_counts.get("All Rounder", 0) < 2:
+            logger.warning(
+                "Fewer than 2 All Rounders available. Optimization may fail."
+            )
+        if sum(role_counts.get(role, 0) for role in ["Bowler", "All Rounder"]) < 5:
+            logger.warning(
+                "Fewer than 5 bowling contributors available. Optimization may fail."
+            )
+
         prob = pulp.LpProblem("FantasyTeam", pulp.LpMaximize)
         players = team_df.index.tolist()
         x = pulp.LpVariable.dicts("player", players, cat="Binary")
@@ -135,9 +156,11 @@ class FantasyTeamOptimizer:
         prob += pulp.lpSum([x[i] for i in allrounder_indices]) >= 2, "Min_AllRounders"
 
         prob.solve(pulp.PULP_CBC_CMD(msg=0))
-        print(f"\n\nLP Status: {pulp.LpStatus[prob.status]}")
+        logger.info("LP Status: %s", pulp.LpStatus[prob.status])
         if pulp.LpStatus[prob.status] != "Optimal":
-            print("No optimal solution found!")
+            logger.warning(
+                "No optimal solution found! Check solver output for details."
+            )
             return None
 
         selected = [i for i in players if pulp.value(x[i]) == 1]
@@ -148,6 +171,10 @@ class FantasyTeamOptimizer:
             team.iloc[0, team.columns.get_loc("Position")] = "Captain"
         if len(team) > 1:
             team.iloc[1, team.columns.get_loc("Position")] = "Vice Captain"
+
+        logger.info("Selected team size: %d", len(team))
+        selected_roles = team["Role"].value_counts()
+        logger.info("Selected team roles: %s", selected_roles.to_dict())
 
         team.set_index("Player", inplace=True)
         return team
