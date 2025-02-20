@@ -76,9 +76,20 @@ class Scrapper:
 
     def generate_time_spans(self, start_year, end_year):
         """Generate a list of (start_date, end_date) tuples for each month between start_year and end_year."""
+        current_date = datetime.datetime.now()
+        current_year = current_date.year
+        current_month = current_date.month
         time_spans = []
         for year in range(start_year, end_year + 1):
-            for month in range(1, 13):
+            if year == end_year:
+                if end_year == current_year:
+                    months = current_month
+                else:
+                    months = 12
+            else:
+                months = 12
+
+            for month in range(1, months + 1):
                 try:
                     start_date = datetime.date(year, month, 1)
                     if month == 12:
@@ -89,9 +100,7 @@ class Scrapper:
                         (start_date.strftime("%d+%b+%Y"), end_date.strftime("%d+%b+%Y"))
                     )
                 except Exception as e:
-                    print(
-                        f"{Fore.RED}Error generating dates for {year}-{month}: {e}{Style.RESET_ALL}"
-                    )
+                    print(f"Error generating dates for {year}-{month}: {e}")
         return time_spans
 
     def extract_player_data(self, html):
@@ -303,6 +312,8 @@ def scrapeData(start_year, end_year):
         )
         scrapper = Scrapper()
         time_spans = scrapper.generate_time_spans(start_year, end_year)
+
+        print(time_spans)
 
         print(f"{Fore.GREEN}Starting scraping process...{Style.RESET_ALL}")
 

@@ -320,3 +320,5 @@ cython_debug/
 .pypirc
 
 test.ipynb
+
+output

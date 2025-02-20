@@ -2,6 +2,65 @@
 
 ![Script Preview](script.jpeg)
 
+## Key Features
+
+- **Data Scraping:** Collects stats for batting, bowling, and fielding from ESPNcricinfo.
+- **Data Update:** Refreshes existing data by scraping new records for a specified number of recent months.
+- **Team Building:** Optimizes and builds a fantasy cricket team using the latest data.
+- **Modular Design:** Clean, organized code structure for easy updates and integration.
+
+## Usage
+
+### Build Team from Latest Data
+
+To update data for the last month and then build the team, run:
+
+```bash
+python3 main.py --build --update 1
+```
+
+- `--build`: Initiates the team building process.
+- `--update 1`: Updates the data for the last 1 month before building the team.
+
+If you just need to build team and dont want to update the data/you already have updated data, run:
+
+```bash
+python3 src/buildteam.py
+```
+
+or
+
+```bash
+python3 main.py --build
+```
+
+NOTE: To run this model, give the player line of data in the `Downloads` folder inside a file named `SquadPlayerNames.csv`
+
+### Update Data Only
+
+To update the data without building the team, run:
+
+```bash
+python3 -m src.update 1
+```
+
+This command updates the scraped data for the last 1 month.
+
+## Project Structure
+
+```
+project_root/
+├── main.py             # Main application script.
+├── Dockerfile          # Dockerfile for the model
+├── requirements.txt    # List of Python dependencies.
+└── src/                # Source code package.
+    ├── __init__.py
+    ├── update.py       # Module to update scraped data.
+    ├── scrapper.py     # Web scraping module.
+    ├── playerform.py   # Module to update player form.
+    └── buildteam.py    # Module to build the fantasy team.
+```
+
 ## Getting started:
 
 First, create a virtual environment and install the required packages:
