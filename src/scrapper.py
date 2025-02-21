@@ -75,11 +75,14 @@ class Scrapper:
         }
 
     def generate_time_spans(self, start_year, end_year):
-        """Generate a list of (start_date, end_date) tuples for each month between start_year and end_year."""
+        """Generate a list of (start_date, end_date) tuples for each month between start_year and end_year.
+        For the current month, the end date is set to yesterday's date."""
         current_date = datetime.datetime.now()
+        today = current_date.date()
         current_year = current_date.year
         current_month = current_date.month
         time_spans = []
+
         for year in range(start_year, end_year + 1):
             if year == end_year:
                 if end_year == current_year:
@@ -92,10 +95,13 @@ class Scrapper:
             for month in range(1, months + 1):
                 try:
                     start_date = datetime.date(year, month, 1)
-                    if month == 12:
-                        end_date = datetime.date(year + 1, 1, 1)
+                    if year == current_year and month == current_month:
+                        end_date = today - datetime.timedelta(days=1)
                     else:
-                        end_date = datetime.date(year, month + 1, 1)
+                        if month == 12:
+                            end_date = datetime.date(year + 1, 1, 1)
+                        else:
+                            end_date = datetime.date(year, month + 1, 1)
                     time_spans.append(
                         (start_date.strftime("%d+%b+%Y"), end_date.strftime("%d+%b+%Y"))
                     )

@@ -24,9 +24,56 @@ class FantasyTeamOptimizer:
         self.merged_df = None
 
     def load_data(self):
-        """Load evaluation and roster data from CSV files."""
-        self.evaluation_df = pd.read_csv(self.config["data"]["player_form"])
+        """
+        Load evaluation and roster data from CSV files.
+        Loads the recent player form and overall performance data,
+        then combines them using a weighted average (0.6 for recent form and 0.4 for overall performance).
+        The resulting DataFrame is stored in self.evaluation_df.
+        """
+        recent_df = pd.read_csv(self.config["data"]["player_form"])
+        overall_df = pd.read_csv(self.config["data"]["overall_performance"])
+
         self.roster_df = pd.read_csv(self.config["data"]["squad_input"])
+
+        combined_df = pd.merge(
+            recent_df,
+            overall_df,
+            on=["Player", "Player Type"],
+            suffixes=("_recent", "_overall"),
+        )
+
+        combined_df["Batting Form"] = (
+            self.config["algorithm"]["recent_player_form"]
+            * combined_df["Batting Form_recent"]
+            + self.config["algorithm"]["overall_performance"]
+            * combined_df["Batting Form_overall"]
+        )
+        combined_df["Bowling Form"] = (
+            self.config["algorithm"]["recent_player_form"]
+            * combined_df["Bowling Form_recent"]
+            + self.config["algorithm"]["overall_performance"]
+            * combined_df["Bowling Form_overall"]
+        )
+
+        if (
+            "Fielding Form_recent" in combined_df.columns
+            and "Fielding Form_overall" in combined_df.columns
+        ):
+            combined_df["Fielding Form"] = (
+                self.config["algorithm"]["recent_player_form"]
+                * combined_df["Fielding Form_recent"]
+                + self.config["algorithm"]["overall_performance"]
+                * combined_df["Fielding Form_overall"]
+            )
+
+        drop_columns = [
+            col
+            for col in combined_df.columns
+            if col.endswith("_recent") or col.endswith("_overall")
+        ]
+        combined_df.drop(columns=drop_columns, inplace=True)
+
+        self.evaluation_df = combined_df
 
     def filter_and_merge(self):
         """

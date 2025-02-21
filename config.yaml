@@ -8,6 +8,7 @@ data:
   bowling_file: "data/bowling_data.csv"
   fielding_file: "data/fielding_data.csv"
   output_file: "data/recent_player_form.csv"
+  overall_performance: "data/overall.csv"
   squad_file: "data/squad.csv"
   player_form: "data/recent_player_form.csv"
   squad_input: "Downloads/SquadPlayerNames.csv"
@@ -17,8 +18,10 @@ data:
 algorithm:
   batter_weight: 1.0
   bowler_weight: 1.0
-  allrounder_weight: 1.0
+  allrounder_weight: 1.15
   keeper_weight: 1.0
+  overall_performance: 0.4
+  recent_player_form: 0.6
 
 ga:
   population_size: 50
