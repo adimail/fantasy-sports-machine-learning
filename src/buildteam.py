@@ -4,6 +4,7 @@ import sys
 import yaml
 import logging
 
+# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -15,7 +16,7 @@ class FantasyTeamOptimizer:
             with open("config.yaml", "r") as stream:
                 config = yaml.safe_load(stream)
         except Exception as e:
-            print(f"Error reading YAML config file: {e}")
+            logger.error(f"Error reading YAML config file: {e}")
             sys.exit(1)
         self.config = config
         self.evaluation_df = None
@@ -93,12 +94,11 @@ class FantasyTeamOptimizer:
             suffixes=("", "_eval"),
         )
         if self.merged_df.empty:
-            print(
-                "Warning: Merged DataFrame is empty. Please verify that the player names and types match between the input files."
+            logger.warning(
+                "Merged DataFrame is empty. Please verify that the player names and types match between the input files."
             )
 
         # Standardize role names to match optimization constraints.
-        # For example, mapping: "ALL" -> "All Rounder", "BOWL" -> "Bowler", "BAT" -> "Batsmen", "WK" -> "Wicket Keeper"
         role_mapping = {
             "ALL": "All Rounder",
             "BOWL": "Bowler",
@@ -118,20 +118,30 @@ class FantasyTeamOptimizer:
         Calculate a player's score based on their role:
           - Batsmen: Score = batter_weight * Batting Form
           - Bowler: Score = bowler_weight * Bowling Form
-          - All Rounder: Score = allrounder_weight * ((Batting Form + Bowling Form) / 2)
+          - All Rounder: Score = allrounder_weight * (batting_ratio * Batting Form + (1 - batting_ratio) * Bowling Form)
+                         where batting_ratio = Batting Form / (Batting Form + Bowling Form)
           - Wicket Keeper: Score = keeper_weight * Batting Form
         """
         role = row["Role"].strip()
+        batting_form = row["Batting Form"]
+        bowling_form = row["Bowling Form"]
+
         if role == "Batsmen":
-            return self.config["algorithm"]["batter_weight"] * row["Batting Form"]
+            return self.config["algorithm"]["batter_weight"] * batting_form
         elif role == "Bowler":
-            return self.config["algorithm"]["bowler_weight"] * row["Bowling Form"]
+            return self.config["algorithm"]["bowler_weight"] * bowling_form
         elif role == "All Rounder":
-            return self.config["algorithm"]["allrounder_weight"] * (
-                (row["Batting Form"] + row["Bowling Form"]) / 2
+            total_form = batting_form + bowling_form
+            if total_form > 0:
+                batting_ratio = batting_form / total_form
+            else:
+                batting_ratio = 0.5
+            score = self.config["algorithm"]["allrounder_weight"] * (
+                batting_ratio * batting_form + (1 - batting_ratio) * bowling_form
             )
+            return score
         elif role == "Wicket Keeper":
-            return self.config["algorithm"]["keeper_weight"] * row["Batting Form"]
+            return self.config["algorithm"]["keeper_weight"] * batting_form
         else:
             return 0
 
@@ -149,7 +159,8 @@ class FantasyTeamOptimizer:
           - At least 5 players with bowling contributions (Bowler or All Rounder).
           - At least 3 Bowler.
           - At least 1 Wicket Keeper.
-          - At least 2 All Rounder.
+          - Exactly 3 All Rounder, with at least one being the best in batting form,
+            one the best in bowling form, and one the best in average form among all-rounders.
 
         Returns:
             A DataFrame of selected players with their computed Score and assigned team role (e.g., Captain, Vice Captain).
@@ -166,9 +177,9 @@ class FantasyTeamOptimizer:
             logger.warning("Fewer than 3 Bowlers available. Optimization may fail.")
         if role_counts.get("Wicket Keeper", 0) < 1:
             logger.warning("No Wicket Keeper available. Optimization may fail.")
-        if role_counts.get("All Rounder", 0) < 2:
+        if role_counts.get("All Rounder", 0) < 3:
             logger.warning(
-                "Fewer than 2 All Rounders available. Optimization may fail."
+                "Fewer than 3 All Rounders available. Optimization may fail."
             )
         if sum(role_counts.get(role, 0) for role in ["Bowler", "All Rounder"]) < 5:
             logger.warning(
@@ -176,7 +187,7 @@ class FantasyTeamOptimizer:
             )
 
         prob = pulp.LpProblem("FantasyTeam", pulp.LpMaximize)
-        players = team_df.index.tolist()
+        players = team_df.index.to_list()
         x = pulp.LpVariable.dicts("player", players, cat="Binary")
         c = pulp.LpVariable.dicts("captain", players, cat="Binary")
         v = pulp.LpVariable.dicts("vice_captain", players, cat="Binary")
@@ -194,26 +205,73 @@ class FantasyTeamOptimizer:
             "Total_Score_with_Bonuses",
         )
 
+        # Constraints
         prob += pulp.lpSum([x[i] for i in players]) == 11, "Total_Players"
 
-        batter_indices = team_df[team_df["Role"] == "Batsmen"].index
+        batter_indices = team_df[team_df["Role"] == "Batsmen"].index.to_list()
         prob += pulp.lpSum([x[i] for i in batter_indices]) >= 4, "Min_Batsmen"
 
-        bowling_indices = team_df[team_df["Role"].isin(["Bowler", "All Rounder"])].index
+        bowling_indices = team_df[
+            team_df["Role"].isin(["Bowler", "All Rounder"])
+        ].index.to_list()
         prob += (
             pulp.lpSum([x[i] for i in bowling_indices]) >= 5,
             "Min_Bowling_Contributors",
         )
 
-        pure_bowler_indices = team_df[team_df["Role"] == "Bowler"].index
+        pure_bowler_indices = team_df[team_df["Role"] == "Bowler"].index.to_list()
         prob += pulp.lpSum([x[i] for i in pure_bowler_indices]) >= 3, "Min_Bowlers"
 
-        keeper_indices = team_df[team_df["Role"] == "Wicket Keeper"].index
+        keeper_indices = team_df[team_df["Role"] == "Wicket Keeper"].index.to_list()
         prob += pulp.lpSum([x[i] for i in keeper_indices]) >= 1, "Min_WicketKeepers"
 
-        allrounder_indices = team_df[team_df["Role"] == "All Rounder"].index
-        prob += pulp.lpSum([x[i] for i in allrounder_indices]) >= 2, "Min_AllRounders"
+        allrounder_indices = team_df[team_df["Role"] == "All Rounder"].index.to_list()
+        prob += (
+            pulp.lpSum([x[i] for i in allrounder_indices]) == 3,
+            "Exactly_3_AllRounders",
+        )
 
+        # Find best all-rounders
+        allrounders_df = team_df[team_df["Role"] == "All Rounder"]
+        if not allrounders_df.empty:
+            max_batting_form = allrounders_df["Batting Form"].max()
+            batting_best_indices = allrounders_df[
+                allrounders_df["Batting Form"] == max_batting_form
+            ].index.to_list()
+            max_bowling_form = allrounders_df["Bowling Form"].max()
+            bowling_best_indices = allrounders_df[
+                allrounders_df["Bowling Form"] == max_bowling_form
+            ].index.to_list()
+            allrounders_df["Average"] = (
+                allrounders_df["Batting Form"] + allrounders_df["Bowling Form"]
+            ) / 2
+            max_average = allrounders_df["Average"].max()
+            average_best_indices = allrounders_df[
+                allrounders_df["Average"] == max_average
+            ].index.to_list()
+        else:
+            batting_best_indices = []
+            bowling_best_indices = []
+            average_best_indices = []
+
+        # Add constraints for best all-rounders
+        prob += (
+            pulp.lpSum([x[i] for i in allrounder_indices if i in batting_best_indices])
+            >= 1,
+            "At_least_one_best_batter",
+        )
+        prob += (
+            pulp.lpSum([x[i] for i in allrounder_indices if i in bowling_best_indices])
+            >= 1,
+            "At_least_one_best_bowler",
+        )
+        prob += (
+            pulp.lpSum([x[i] for i in allrounder_indices if i in average_best_indices])
+            >= 1,
+            "At_least_one_best_average",
+        )
+
+        # Captain and Vice Captain constraints
         prob += pulp.lpSum([c[i] for i in players]) == 1, "One_Captain"
         prob += pulp.lpSum([v[i] for i in players]) == 1, "One_ViceCaptain"
         for i in players:
@@ -221,7 +279,12 @@ class FantasyTeamOptimizer:
             prob += v[i] <= x[i], f"ViceCaptain_Selected_{i}"
             prob += c[i] + v[i] <= 1, f"No_Dual_Role_{i}"
 
-        prob.solve(pulp.PULP_CBC_CMD(msg=0))
+        # Solve the optimization problem with a fallback
+        try:
+            prob.solve(pulp.PULP_CBC_CMD(msg=0))  # Attempt to use CBC solver
+        except AttributeError:
+            logger.warning("CBC solver not found. Falling back to default solver.")
+            prob.solve()  # Use default solver if CBC is unavailable
         logger.info("LP Status: %s", pulp.LpStatus[prob.status])
         if pulp.LpStatus[prob.status] != "Optimal":
             logger.warning(
@@ -243,6 +306,9 @@ class FantasyTeamOptimizer:
         logger.info("Selected team roles: %s", selected_roles.to_dict())
 
         team.set_index("Player", inplace=True)
+        team.drop(
+            columns=["Batting Form", "Bowling Form", "Fielding Form", "Score"]
+        ).to_csv(self.config["data"]["competition"]["output"])
         return team
 
 

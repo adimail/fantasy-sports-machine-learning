@@ -8,7 +8,6 @@ tqdm
 colorama
 pyyaml
 scipy
-xgboost
 matplotlib
 PuLP
 shap

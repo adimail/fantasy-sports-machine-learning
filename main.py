@@ -31,6 +31,12 @@ def summarize_squad_data(file_path):
 @click.option("--update", type=int, help="Update player data for the last n months.")
 @click.argument("option", required=False, type=int)
 def main(build, genetic, updateplayerform, update, option):
+    squad_file = (
+        "/app/data/SquadPlayerNames.csv"
+        if os.path.exists("/app/data/SquadPlayerNames.csv")
+        else "data/SquadPlayerNames.csv"
+    )
+
     if update is not None:
         try:
             print(
@@ -41,23 +47,19 @@ def main(build, genetic, updateplayerform, update, option):
             print(f"{Fore.RED}Error updating player data: {e}{Style.RESET_ALL}")
             sys.exit(1)
 
-    if os.path.exists("Downloads"):
-        files = os.listdir("Downloads")
-        print(f"\n{Fore.GREEN}Number of files in the Downloads folder: {len(files)}")
-        if "SquadPlayerNames.csv" in files:
-            print(f"{Fore.GREEN}SquadPlayerNames.csv found.{Style.RESET_ALL}")
-            teams = summarize_squad_data("Downloads/SquadPlayerNames.csv")
-            if len(teams) >= 2:
-                team_option_text = f"Build Team for {teams[0]} vs {teams[1]}"
-            else:
-                team_option_text = "Build Team"
+    if os.path.exists(squad_file):
+        print(
+            f"{Fore.GREEN}SquadPlayerNames.csv found at {squad_file}{Style.RESET_ALL}"
+        )
+        teams = summarize_squad_data(squad_file)
+        if len(teams) >= 2:
+            team_option_text = f"Build Team for {teams[0]} vs {teams[1]}"
         else:
-            print(
-                f"{Fore.YELLOW}SquadPlayerNames.csv not found in the Downloads folder.{Style.RESET_ALL}"
-            )
-            sys.exit(1)
+            team_option_text = "Build Team"
     else:
-        print(f"{Fore.YELLOW}Downloads folder not found.{Style.RESET_ALL}")
+        print(
+            f"{Fore.YELLOW}SquadPlayerNames.csv not found at {squad_file}{Style.RESET_ALL}"
+        )
         sys.exit(1)
 
     if build:

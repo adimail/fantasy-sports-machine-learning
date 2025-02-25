@@ -1,0 +1,7 @@
+.git
+.DS_Store
+*.ipynb
+.ipynb_checkpoints
+.virtual_documents
+test.ipynb
+output
