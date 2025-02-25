@@ -1,250 +1,323 @@
-# Fantasy Team Optimization System
+# Cricket Fantasy Team Optimization System
 
 ![Script Preview](script.jpeg)
 
+## Overview
+
+This project provides a system for optimizing fantasy cricket team selection using player performance data and roster information. It calculates player form scores based on recent match data and uses these scores to select an optimal team under specific constraints, leveraging a modular design and linear programming techniques.
+
 ## Key Features
 
-- **Data Scraping:** Collects stats for batting, bowling, and fielding from ESPNcricinfo.
-- **Data Update:** Refreshes existing data by scraping new records for a specified number of recent months.
-- **Team Building:** Optimizes and builds a fantasy cricket team using the latest data.
-- **Modular Design:** Clean, organized code structure for easy updates and integration.
+- **Data Processing:** Cleans and merges batting, bowling, and fielding statistics.
+- **Player Form Calculation:** Computes recent performance scores using exponential decay and normalization.
+- **Team Optimization:** Builds an optimal fantasy team with role-specific constraints using PuLP.
+- **Modular Design:** Organized code structure for scalability and ease of maintenance.
 
 ## Usage
 
 ### Build Team from Latest Data
 
-To update data for the last month and then build the team, run:
-
-```bash
-python3 main.py --build --update 1
-```
-
-- `--build`: Initiates the team building process.
-- `--update 1`: Updates the data for the last 1 month before building the team.
-
-If you just need to build team and dont want to update the data/you already have updated data, run:
+To build a fantasy team using the latest player form data, run:
 
 ```bash
 python3 src/buildteam.py
 ```
 
-or
+Or, if integrated with a main script:
 
 ```bash
 python3 main.py --build
 ```
 
-NOTE: To run this model, give the player line of data in the `Downloads` folder inside a file named `SquadPlayerNames.csv`
+> **Note:** Ensure the roster data is in the `SquadPlayerNames.csv` file, located as specified in `config.yaml` (typically under a data directory or Downloads folder).
 
-### Update Data Only
+### Update Player Form Data
 
-To update the data without building the team, run:
+To update player form scores without building a team, run:
 
 ```bash
-python3 -m src.update 1
+python3 -m src.playerform
 ```
 
-This command updates the scraped data for the last 1 month.
+This calculates form scores based on recent match data specified in `config.yaml`.
 
 ## Project Structure
 
 ```
 project_root/
-├── main.py             # Main application script.
-├── Dockerfile          # Dockerfile for the model
-├── requirements.txt    # List of Python dependencies.
-└── src/                # Source code package.
-    ├── __init__.py
-    ├── update.py       # Module to update scraped data.
-    ├── scrapper.py     # Web scraping module.
-    ├── playerform.py   # Module to update player form.
-    └── buildteam.py    # Module to build the fantasy team.
+├── main.py                     # Main entry point for the application
+├── Dockerfile                  # Container configuration for Docker deployment
+├── config.yaml                 # Configuration settings and parameters
+├── requirements.txt            # Python package dependencies
+└── src/                        # Source code directory
+    ├── __init__.py             # Makes src a Python package
+    ├── geneticalgorithm.py     # Genetic algorithm implementation for team optimization
+    ├── lifetimeperformance.py  # Calculates historical player performance metrics
+    ├── scrapper.py             # Data scraping utilities for player statistics
+    ├── playerform.py           # Player form score calculation
+    └── buildteam.py            # Team optimization and selection logic
 ```
 
-## Getting started:
+## Getting Started
 
-First, create a virtual environment and install the required packages:
+### Set Up Virtual Environment
 
-```sh
-python3 -m venv .venv
-source .venv/bin/activate   # On Windows: .venv\Scripts\activate
-pip3 install --no-cache-dir -r requirements.txt
+1. Create and activate a virtual environment:
+
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate   # On Windows: .venv\Scripts\activate
+   ```
+
+2. Install dependencies:
+
+   ```bash
+   pip3 install --no-cache-dir -r requirements.txt
+   ```
+
+### Run the Team Builder
+
+```bash
+python3 main.py --build
 ```
 
-Then, run the main script:
+Alternatively, you can use Docker:
 
-```sh
-python main.py
-```
-
-Alternatively, you can use Docker to build and run the project:
-
-```sh
+```bash
 docker build -t fantasy-team-builder .
 docker run -it --rm fantasy-team-builder
 ```
 
 ## Algorithm
 
-This system is composed of two primary modules:
+The system consists of two main modules:
 
-1. **Player Form Calculation** – Computes recent performance metrics (form scores) for each player based on historical match data.
-2. **Fantasy Team Optimizer** – Uses the computed form scores along with additional roster information to select an optimal team under given constraints.
+### 1. Player Form Calculation (`playerform.py`)
 
-Each module is described in detail below.
+This module processes historical match data to compute performance scores for each player.
 
----
+#### Process Overview:
 
-## 1. Player Form Calculation
+- **Data Loading and Cleaning:**
+  Inputs include CSV files for batting, bowling, and fielding statistics (paths specified in `config.yaml`).
 
-This module is responsible for processing raw match data (batting, bowling, and fielding statistics) and producing composite performance scores (form scores) for each player. The main steps are:
+  - Drops empty columns.
+  - Renames non-key columns with prefixes (e.g., `bat_`, `bowl_`, `field_`) except for key columns (`Player`, `Team`, `Start Date`, `End Date`, `Mat`).
 
-### a. Data Loading and Cleaning
+- **Merging Data:**
+  Merges the batting, bowling, and fielding datasets on key columns using outer joins to create a unified DataFrame.
 
-- **CSV Inputs:** Three CSV files (one each for batting, bowling, and fielding) are read.
-- **Drop Empty Columns:** Any column that is entirely missing is dropped to ensure clean data.
-- **Column Renaming:**
-  - For clarity and to avoid naming conflicts during merge, columns in each dataset are prefixed with `"bat "`, `"bowl "`, or `"field "` except for key columns (`Player`, `Team`, `Start Date`, `End Date`, `Mat`).
+- **Filtering by Squad and Recency:**
 
-### b. Data Merging
+  - **Squad Filtering:** Retains only players listed in the squad CSV (e.g., `SquadPlayerNames.csv`), adding metadata like Credits and Player Type.
+  - **Recency:** Filters matches within a specific time window (e.g., last 6 months, configurable via `previous_months` in `config.yaml`).
+  - **Indexing:** Sorts by Player and End Date, assigning a match index.
 
-- **Merging on Key Columns:**
-  - The three datasets are merged using outer joins on the key columns. This creates a unified dataset that combines all available statistics for each match.
-- **Date Conversion:**
-  - The date columns (`Start Date` and `End Date`) are converted to datetime objects, which allows filtering by recency.
+- **Exponential Decay Weighting:**
+  Applies weights using `exp(-decay_rate * match_index)` (with `decay_rate` specified in `config.yaml`) to emphasize recent performances.
 
-### c. Filtering by Recent Matches
+- **Exponentially Weighted Moving Average (EWMA):**
+  Computes the EWMA for each performance metric using the decay weights.
 
-- **Time Window:**
-  - A parameter (`previous_months`) specifies the recency window. Matches older than the cutoff (today’s date minus the number of months) are excluded.
-- **Sorting and Indexing:**
-  - The remaining (recent) data is sorted by `Player` and `End Date` (most recent first), and a match index is assigned to each player’s matches.
+- **Normalization:**
+  Normalizes EWMA values to a 0–100 scale using percentile ranking, reflecting relative performance.
 
-### d. Exponential Decay Weighting
+- **Composite Scores:**
+  Calculates:
+  - **Batting Form:** A weighted sum of normalized metrics (e.g., runs: 0.35, average: 0.25, strike rate: 0.2).
+  - **Bowling Form:** A weighted sum (e.g., wickets: 0.6, average: 0.2, economy: 0.2) with inverted average and economy (i.e., using `100 - value`).
+  - **Fielding Form:** A weighted sum (e.g., catches: 0.5, stumpings: 0.3).
 
-- **Decay Weights:**
-  - An exponential decay factor (using `decay_rate`) is applied based on the match index. This gives higher weight to recent performances compared to older ones.
+**Example Output:**
 
-### e. Calculation of Exponentially Weighted Averages (EWMA)
+```
+Player,Batting Form,Bowling Form,Fielding Form,Credits,Player Type,Team
+Kane Williamson,85.2,10.5,45.3,9.0,BAT,NZ
+Shaheen Afridi,20.1,90.7,30.2,9.0,BOWL,PAK
+```
 
-- **Metric-by-Metric Calculation:**
-  - For each performance metric (e.g., runs scored, wickets taken, catches), an exponentially weighted moving average is calculated for each player.
+### 2. Fantasy Team Optimizer (`buildteam.py`)
 
-### f. Normalization of Metrics
+This module selects an optimal 11-player team based on form scores and roster data.
 
-- **Normalization Method:**
-  - Each EWMA is normalized to a 0–100 scale using the cumulative distribution function (CDF) of the standard normal distribution. This converts raw values into scores that reflect how a player performs relative to the global distribution.
-- **Handling Different Metrics:**
-  - For batting: metrics like runs, strike rate, average, and boundaries are combined with specific weights.
-  - For bowling: wickets, average, and economy (with adjustments such as subtracting from 100 for metrics where a lower value is better) are combined.
-  - For fielding: key fielding metrics are weighted and summed.
+#### Process Overview:
 
-### g. Composite Form Score Generation
+- **Data Loading:**
 
-- **Final Output:**
+  - **Evaluation Data:** Loads player form scores, combining recent and overall performance (e.g., 0.6 recent, 0.4 overall).
+  - **Roster Data:** Loads `SquadPlayerNames.csv` with columns such as Credits, Player Type, Player Name, Team, and IsPlaying.
 
-  - The resulting DataFrame includes for each player:
-    - **Player Name**
-    - **Batting Form:** Composite score based on batting metrics.
-    - **Bowling Form:** Composite score based on bowling metrics.
-    - **Fielding Form:** Composite score based on fielding metrics.
-    - **Additional Metadata:** Credits, Player Type, and Team.
+- **Filtering and Merging:**
 
-- **Example Format:**
+  - Filters the roster to include only "PLAYING" players.
+  - Merges the roster data with form scores based on Player and Player Type.
+  - Standardizes roles (e.g., converting `ALL` to All Rounder, `BAT` to Batsmen).
 
-  ```
-  Player,Batting Form,Bowling Form,Fielding Form,Credits,Player Type,Team
-  Aaron Hardie,35.93,43.59,40.99,6.5,ALL,Australia
-  Abrar Ahmed,31.81,70.61,35.62,7.0,BOWL,Pakistan
-  ```
+- **Score Calculation:**
+  Computes role-based scores:
 
----
+  - **Batsmen:** `batter_weight * Batting Form`
+  - **Bowlers:** `bowler_weight * Bowling Form`
+  - **All Rounders:**
+    A weighted mix of Batting and Bowling Forms, where:
+    ```
+    batting_ratio = Batting Form / (Batting Form + Bowling Form)
+    ```
+    then
+    ```
+    allrounder_score = allrounder_weight * (batting_ratio * Batting Form + (1 - batting_ratio) * Bowling Form)
+    ```
+  - **Wicket Keepers:** `keeper_weight * Batting Form`
 
-## 2. Fantasy Team Optimizer
+- **Optimization with PuLP:**
+  Uses linear programming (via PuLP) to maximize the total team score with the following constraints:
+  - Exactly 11 players.
+  - Minimum role requirements:
+    - ≥ 4 Batsmen.
+    - ≥ 5 bowling contributors (Bowlers or All Rounders).
+    - ≥ 3 Bowlers.
+    - ≥ 1 Wicket Keeper.
+    - Exactly 3 All Rounders (selected based on best performance in batting, bowling, and average form).
+  - Incorporates leadership designations:
+    - **Captain:** 2x multiplier on score.
+    - **Vice-Captain:** 1.5x multiplier on score.
 
-This module uses the computed form scores and additional roster data to select the best possible fantasy team. The process involves the following steps:
+**Example Output:**
 
-### a. Data Loading and Preprocessing
+```
+Selected Team
 
-- **Evaluation Data:**
-  - Load the player form data (the output from the Player Form Calculation module).
-- **Roster Data:**
-  - Load an input roster CSV file that contains details such as Credits, Player Type, Player Name, Team, and whether the player is playing.
-- **Filtering:**
-  - Only players marked as `"PLAYING"` are considered.
-- **Player Type Mapping:**
-  - The roster’s player types (e.g., "All Rounder", "Batsmen", "Bowlers", "Wicket Keeper") are mapped to the abbreviated types used in the evaluation file (`ALL`, `BAT`, `BOWL`).
-  - For instance, wicket keepers are treated as batsmen.
+93.66    Batsmen     Daryl Mitchell (Captain)
+80.18    Batsmen     Fakhar Zaman (Vice Captain)
+85.20    Batsmen     Kane Williamson
+76.07    Bowler      Haris Rauf
+74.66    Batsmen     Babar Azam
+90.70    Bowler      Shaheen Afridi
+70.75    All Rounder Glenn Phillips
+68.82    Wicket Keeper Mohammad Rizwan
+65.30    All Rounder Michael Bracewell
+70.61    Bowler      Abrar Ahmed
+60.40    All Rounder Agha Salman
+```
 
-### b. Merging Evaluation and Roster Data
+## Docker Commands
 
-- **Merge Keys:**
-  - The filtered roster is merged with the evaluation data on `Player` and `Player Type` to ensure that the most up-to-date form scores are used for team selection.
-- **Result Check:**
-  - A warning is printed if the merge results in an empty DataFrame, indicating potential mismatches in player names or types.
+### Prerequisites
 
-### c. Predicted Fantasy Points and Role Assignment
+Ensure you have the following files in your `~/Downloads` folder:
 
-- **Predicted Score Calculation:**
-  - For each player, a “Predicted” fantasy point score is determined based on their form scores:
-    - **Bowlers:** Use the Bowling Form directly.
-    - **Batsmen:** Use the Batting Form directly.
-    - **All-Rounders:** The highest value among Batting, Bowling, and Fielding is chosen.
-      - The corresponding role is assigned as `"BAT"` if batting or fielding is best (with fielding defaulting to batsman) or `"BOWL"` if bowling is best.
-- **Additional ML Training:**
-  - An XGBoost regression model is trained on the three form scores. Although the target is already computed from the form scores, this simulates a machine learning process, and the model is later used to update the predicted scores.
+- `sinister6.csv` (player form data)
+- `SquadPlayerNames.csv` (roster data)
 
-### d. Team Selection Optimization using PuLP
+### Commands
 
-- **Optimization Objective:**
-  - The goal is to maximize the total predicted fantasy points of the team. Additional multipliers are applied:
-    - **Captain:** Selected player’s score is counted fully extra.
-    - **Vice-Captain:** Selected player’s score gets a 0.5 extra multiplier.
-- **Decision Variables:**
-  - Binary decision variables are defined for:
-    - **Selection:** Whether a player is included in the team.
-    - **Captain:** Whether a player is chosen as captain.
-    - **Vice-Captain:** Whether a player is chosen as vice-captain.
-- **Constraints:**
-  - **Total Players:** Exactly 11 players must be selected.
-  - **Role Constraints:**
-    - At least 3 players must have an assigned role of `"BOWL"`.
-    - At least 3 players must have an assigned role of `"BAT"`.
-  - **Captain/Vice-Captain:**
-    - Exactly one captain and one vice-captain must be chosen.
-    - The captain and vice-captain must be among the selected players.
-    - A player cannot hold both roles simultaneously.
-- **Solving the Problem:**
-  - The PuLP linear programming problem is solved using the CBC solver.
-- **Output:**
+1. **Load the Model:**
 
-  - The final team is output with each player's predicted score, role, and designation if they are selected as captain or vice-captain.
+   ```bash
+   docker load -i sinister6.tar
+   ```
 
-- **Example of Output:**
+2. **Run the Container:**
 
-  ```
-  Selected Team
+   ```bash
+   touch ~/Downloads/sinister6.csv
+   docker run --rm \
+     -v ~/Downloads/SquadPlayerNames.csv:/app/data/SquadPlayerNames.csv \
+     -v ~/Downloads/sinister6.csv:/app/sinister6.csv \
+     sinister6
+   ```
 
-  93.66    BAT     Daryl Mitchell (Captain)
-  80.18    BAT     Fakhar Zaman (Vice Captain)
-  80.17    BAT     Will Young
-  76.07    BOWL    Haris Rauf
-  74.66    BAT     Babar Azam
-  74.27    BOWL    Matt Henry
-  72.40    BAT     Kane Williamson
-  72.14    BOWL    Shaheen Afridi
-  70.75    BAT     Glenn Phillips
-  70.61    BOWL    Abrar Ahmed
-  68.82    BAT     Tayyab Tahir
-  ```
+## Input Data Format
 
----
+**Roster CSV Example (`SquadPlayerNames.csv`):**
+
+```
+Credits,Player Type,Player Name,Team,IsPlaying,lineupOrder
+7.5,ALL,Michael Bracewell,NZ,PLAYING,7
+8.5,BAT,Babar Azam,PAK,PLAYING,2
+9,BOWL,Shaheen Afridi,PAK,PLAYING,8
+```
+
+## Output File Format
+
+**Team Selection Output Example:**
+
+```
+Player,Role,Team,Position
+Daryl Mitchell,Batsmen,NZ,Captain
+Fakhar Zaman,Batsmen,PAK,Vice Captain
+Babar Azam,Batsmen,PAK,Player
+```
 
 ## Conclusion
 
-The system operates as follows:
-
 - **Player Form Calculation:**
-  - It starts by cleaning and merging match data, calculating recent performance scores using exponential decay and normalization, and finally producing composite scores for batting, bowling, and fielding.
+  Cleans, merges, and processes match data to produce normalized form scores using exponential decay.
 - **Fantasy Team Optimizer:**
-  - It takes these scores, merges them with current roster information, computes predicted fantasy points (with role assignments), and then optimizes team selection using a linear programming approach with constraints on team size, roles, and leadership positions (captain and vice-captain).
+  Combines form scores with roster data, computes role-based scores, and optimizes team selection with PuLP, ensuring balanced team composition and leadership roles.
+
+---
+
+## Explanation of How the Model Works
+
+The Fantasy Team Optimization System operates in two primary stages:
+
+### 1. Player Form Calculation (`playerform.py`)
+
+- **Input Data:**
+  CSV files for batting, bowling, and fielding statistics, plus a squad CSV for player metadata.
+
+- **Process:**
+
+  - **Load and Clean:**
+    Reads CSV files, drops empty columns, and prefixes columns for clarity.
+  - **Merge:**
+    Combines datasets on `Player`, `Team`, `Start Date`, `End Date`, and `Mat`.
+  - **Filter:**
+    Limits data to squad players and recent matches (e.g., last 6 months).
+  - **Weighting:**
+    Applies an exponential decay (`exp(-decay_rate * match_index)`) to emphasize recent performances.
+  - **EWMA:**
+    Computes exponentially weighted moving averages for performance metrics.
+  - **Normalization:**
+    Scales EWMA values to a 0–100 range using percentile ranking.
+  - **Composite Scores:**
+    Combines metrics into `Batting Form`, `Bowling Form`, and `Fielding Form`.
+
+- **Output:**
+  A CSV file with form scores and player metadata (e.g., `Kane Williamson,85.2,10.5,45.3,9.0,BAT,NZ`).
+
+### 2. Fantasy Team Optimizer (`buildteam.py`)
+
+- **Input Data:**
+  Form scores CSV and a roster CSV (e.g., `SquadPlayerNames.csv`) with player status.
+
+- **Process:**
+
+  - **Load Data:**
+    Merges recent and overall form scores and loads the roster.
+  - **Filter and Merge:**
+    Retains only "PLAYING" players and standardizes roles.
+  - **Score Calculation:**
+    Assigns scores based on role:
+    - **Batsmen:** Weighted Batting Form.
+    - **Bowlers:** Weighted Bowling Form.
+    - **All Rounders:** Weighted mix of Batting and Bowling Forms.
+    - **Wicket Keepers:** Weighted Batting Form.
+  - **Optimization:**
+    Uses PuLP to maximize total score with constraints on team composition and leadership designations.
+
+- **Output:**
+  An optimized team list with roles and designations (e.g., Captain, Vice Captain).
+
+### Integration
+
+- `playerform.py` generates the form scores.
+- `buildteam.py` uses these scores to optimize team selection.
+- Configuration (e.g., file paths, weights) is managed via `config.yaml`.
+
+This two-stage process ensures a robust and strategic approach to fantasy team selection, blending historical performance with current form data.
+
+---
+
+Happy team building!

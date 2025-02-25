@@ -323,3 +323,5 @@ test.ipynb
 
 output
 *.tar
+
+.sinister6.csv

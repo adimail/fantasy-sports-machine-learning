@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cricket Fantasy Team Optimization System</title>
+    <style>
+      /* Existing styles... */
+
+      /* Theme variables */
+      :root {
+        --bg-color: #f8f8f8;
+        --text-color: #333;
+        --heading-color: #222;
+        --link-color: #0066cc;
+        --sidebar-bg: #e0e0e0;
+        --code-bg: #eee;
+        --border-color: #ddd;
+        --table-header-bg: #f5f5f5;
+        --table-alt-row: #f9f9f9;
+        --table-hover: #f0f0f0;
+      }
+
+      [data-theme='dark'] {
+        --bg-color: #1a1a1a;
+        --text-color: #e0e0e0;
+        --heading-color: #ffffff;
+        --link-color: #66b3ff;
+        --sidebar-bg: #2d2d2d;
+        --code-bg: #2d2d2d;
+        --border-color: #404040;
+        --table-header-bg: #2d2d2d;
+        --table-alt-row: #262626;
+        --table-hover: #333333;
+      }
+
+      body {
+        font-family: 'Courier New', Courier, monospace;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      h1 {
+        color: var(--heading-color);
+      }
+
+      hr {
+        border: 1px solid var(--border-color);
+        margin: 50px 0;
+      }
+
+      h2,
+      h3,
+      h4 {
+        color: var(--link-color);
+      }
+
+      #toggle-sidebar {
+        display: none;
+        background-color: #0066cc;
+        color: white;
+        border: none;
+        padding: 10px;
+        cursor: pointer;
+      }
+
+      #sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 200px;
+        height: 100%;
+        background-color: var(--sidebar-bg);
+        padding: 20px;
+        overflow-y: auto;
+      }
+
+      #sidebar ul {
+        list-style: none;
+        padding: 0;
+      }
+
+      #sidebar li {
+        margin-bottom: 10px;
+      }
+
+      #sidebar a {
+        text-decoration: none;
+        color: var(--text-color);
+      }
+
+      #sidebar a:hover {
+        color: var(--link-color);
+      }
+
+      main {
+        margin-left: 220px;
+      }
+
+      @media (max-width: 768px) {
+        #sidebar {
+          display: none;
+        }
+        main {
+          margin-left: 0;
+        }
+        #toggle-sidebar {
+          display: block;
+        }
+      }
+
+      #sidebar.show {
+        display: block;
+      }
+
+      pre code {
+        background-color: var(--code-bg);
+        border-color: var(--border-color);
+        display: block;
+        padding: 10px;
+        overflow-x: auto;
+      }
+
+      code {
+        background-color: var(--code-bg);
+        padding: 2px 5px;
+      }
+
+      details {
+        margin-bottom: 20px;
+      }
+
+      summary {
+        cursor: pointer;
+        font-weight: bold;
+        color: var(--link-color);
+      }
+
+      p > strong {
+        color: var(--heading-color);
+      }
+
+      ul,
+      ol {
+        padding-left: 20px;
+      }
+
+      img {
+        max-width: 100%;
+        height: auto;
+        display: block;
+        margin: 20px 0;
+      }
+
+      /* New table styles */
+      .output-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        white-space: nowrap;
+      }
+
+      .output-table-wrapper {
+        overflow-x: auto;
+        margin: 20px 0;
+      }
+
+      .output-table th,
+      .output-table td {
+        border-color: var(--border-color);
+        padding: 8px 12px;
+        text-align: left;
+      }
+
+      .output-table th {
+        background-color: var(--table-header-bg);
+        font-weight: bold;
+      }
+
+      .output-table tr:nth-child(even) {
+        background-color: var(--table-alt-row);
+      }
+
+      .output-table tr:hover {
+        background-color: var(--table-hover);
+      }
+
+      /* Theme toggle styles */
+      #theme-toggle {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        z-index: 1000;
+        padding: 10px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: var(--bg-color);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        transition: transform 0.3s ease;
+      }
+
+      #theme-toggle:hover {
+        transform: scale(1.1);
+      }
+
+      #theme-toggle svg {
+        width: 24px;
+        height: 24px;
+        fill: var(--text-color);
+      }
+    </style>
+  </head>
+  <body>
+    <nav id="sidebar">
+      <ul>
+        <li><a href="#overview">Overview</a></li>
+        <li><a href="#key-features">Key Features</a></li>
+        <li><a href="#github">GitHub</a></li>
+        <li><a href="#usage">Usage</a></li>
+        <li><a href="#project-structure">Project Structure</a></li>
+        <li><a href="#getting-started">Getting Started</a></li>
+        <li><a href="#algorithm">Algorithm</a></li>
+        <li><a href="#docker-commands">Docker Commands</a></li>
+        <li><a href="#input-data-format">Input Data Format</a></li>
+        <li><a href="#output-file-format">Output File Format</a></li>
+        <li><a href="#conclusion">Conclusion</a></li>
+        <li><a href="#explanation">Explanation of How the Model Works</a></li>
+      </ul>
+    </nav>
+    <main>
+      <header>
+        <h1>Cricket Fantasy Team Optimization System</h1>
+        <button id="toggle-sidebar">Menu</button>
+      </header>
+
+      <hr />
+
+      <img src="script.jpeg" alt="Script Preview" />
+
+      <h2 id="overview">Overview</h2>
+
+      <p>
+        This project provides a system for optimizing fantasy cricket team
+        selection using player performance data and roster information. It
+        calculates player form scores based on recent match data and uses these
+        scores to select an optimal team under specific constraints, leveraging
+        a modular design and linear programming techniques.
+      </p>
+
+      <h2 id="key-features">Key Features</h2>
+      <ul>
+        <li>
+          <strong>Data Processing:</strong> Cleans and merges batting, bowling,
+          and fielding statistics.
+        </li>
+        <li>
+          <strong>Player Form Calculation:</strong> Computes recent performance
+          scores using exponential decay and normalization.
+        </li>
+        <li>
+          <strong>Team Optimization:</strong> Builds an optimal fantasy team
+          with role-specific constraints using PuLP.
+        </li>
+        <li>
+          <strong>Modular Design:</strong> Organized code structure for
+          scalability and ease of maintenance.
+        </li>
+      </ul>
+
+      <h2 id="github">GitHub</h2>
+      <p>
+        The project is open source and available on GitHub. You can clone and
+        contribute to the project.
+      </p>
+
+      <h3>Repository</h3>
+      <p>
+        <a
+          href="https://github.com/adimail/fantasy-sports-machine-learning"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          github.com/adimail/fantasy-sports-machine-learning
+        </a>
+      </p>
+
+      <h3>Clone the Repository</h3>
+      <pre><code>git clone https://github.com/adimail/fantasy-sports-machine-learning.git
+cd fantasy-sports-machine-learning</code></pre>
+
+      <h3>Branch Structure</h3>
+      <ul>
+        <li><strong>main</strong> - Stable release branch</li>
+        <li>
+          <strong>develop</strong> - Development branch for latest changes
+        </li>
+      </ul>
+
+      <h3>Contributing</h3>
+      <ol>
+        <li>Fork the repository</li>
+        <li>
+          Create a feature branch (<code
+            >git checkout -b feature/amazing-feature</code
+          >)
+        </li>
+        <li>
+          Commit your changes (<code
+            >git commit -m 'Add some amazing feature'</code
+          >)
+        </li>
+        <li>
+          Push to the branch (<code
+            >git push origin feature/amazing-feature</code
+          >)
+        </li>
+        <li>Open a Pull Request</li>
+      </ol>
+
+      <h3>Issues</h3>
+      <p>
+        Feel free to file a new issue if you find a bug or want to suggest an
+        enhancement. Before creating a new issue, please check if a similar
+        issue already exists.
+      </p>
+
+      <div class="output-table-wrapper">
+        <table class="output-table">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Template</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Bug Report</td>
+              <td>
+                Include steps to reproduce, expected behavior, and actual
+                behavior
+              </td>
+            </tr>
+            <tr>
+              <td>Feature Request</td>
+              <td>Describe the feature and its potential benefits</td>
+            </tr>
+            <tr>
+              <td>Question</td>
+              <td>Provide context and what you've tried so far</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="usage">Usage</h2>
+
+      <video
+        src="script.mp4"
+        autoplay
+        loop
+        muted
+        controls
+        style="width: 100%; margin: 20px 0; border-radius: 8px"
+      ></video>
+
+      <h3>Build Team from Latest Data</h3>
+      <p>To build a fantasy team using the latest player form data, run:</p>
+      <pre><code>python3 src/buildteam.py</code></pre>
+      <p>Or, if integrated with a main script:</p>
+      <pre><code>python3 main.py --build</code></pre>
+      <p>
+        <strong>Note:</strong> Ensure the roster data is in the
+        <code>SquadPlayerNames.csv</code> file, located as specified in
+        <code>config.yaml</code> (typically under a data directory or Downloads
+        folder).
+      </p>
+
+      <h3>Update Player Form Data</h3>
+      <p>To update player form scores without building a team, run:</p>
+      <pre><code>python3 -m src.playerform</code></pre>
+      <p>
+        This calculates form scores based on recent match data specified in
+        <code>config.yaml</code>.
+      </p>
+
+      <h2 id="project-structure">Project Structure</h2>
+      <pre><code>project_root/
+├── main.py                     # Main entry point for the application
+├── Dockerfile                  # Container configuration for Docker deployment
+├── config.yaml                 # Configuration settings and parameters
+├── requirements.txt            # Python package dependencies
+└── src/                        # Source code directory
+    ├── __init__.py             # Makes src a Python package
+    ├── geneticalgorithm.py     # Genetic algorithm implementation for team optimization
+    ├── lifetimeperformance.py  # Calculates historical player performance metrics
+    ├── scrapper.py             # Data scraping utilities for player statistics
+    ├── playerform.py           # Player form score calculation
+    └── buildteam.py            # Team optimization and selection logic
+</code></pre>
+
+      <h2 id="getting-started">Getting Started</h2>
+      <h3>Set Up Virtual Environment</h3>
+      <ol>
+        <li>
+          Create and activate a virtual environment:
+          <pre><code>python3 -m venv .venv
+source .venv/bin/activate   # On Windows: .venv\Scripts\activate</code></pre>
+        </li>
+        <li>
+          Install dependencies:
+          <pre><code>pip3 install --no-cache-dir -r requirements.txt</code></pre>
+        </li>
+      </ol>
+      <h3>Run the Team Builder</h3>
+      <pre><code>python3 main.py --build</code></pre>
+      <p>Alternatively, you can use Docker:</p>
+      <pre><code>docker build -t fantasy-team-builder .
+docker run -it --rm fantasy-team-builder</code></pre>
+
+      <h2 id="algorithm">Algorithm</h2>
+      <p>The system consists of two main modules:</p>
+      <details>
+        <summary>
+          1. Player Form Calculation (<code>playerform.py</code>)
+        </summary>
+        <p>
+          This module processes historical match data to compute performance
+          scores for each player.
+        </p>
+        <h4>Process Overview:</h4>
+        <ul>
+          <li>
+            <strong>Data Loading and Cleaning:</strong> Inputs include CSV files
+            for batting, bowling, and fielding statistics (paths specified in
+            <code>config.yaml</code>).
+            <ul>
+              <li>Drops empty columns.</li>
+              <li>
+                Renames non-key columns with prefixes (e.g., <code>bat_</code>,
+                <code>bowl_</code>, <code>field_</code>) except for key columns
+                (<code>Player</code>, <code>Team</code>,
+                <code>Start Date</code>, <code>End Date</code>,
+                <code>Mat</code>).
+              </li>
+            </ul>
+          </li>
+          <li>
+            <strong>Merging Data:</strong> Merges the batting, bowling, and
+            fielding datasets on key columns using outer joins to create a
+            unified DataFrame.
+          </li>
+          <li>
+            <strong>Filtering by Squad and Recency:</strong>
+            <ul>
+              <li>
+                <strong>Squad Filtering:</strong> Retains only players listed in
+                the squad CSV (e.g., <code>SquadPlayerNames.csv</code>), adding
+                metadata like Credits and Player Type.
+              </li>
+              <li>
+                <strong>Recency:</strong> Filters matches within a specific time
+                window (e.g., last 6 months, configurable via
+                <code>previous_months</code> in <code>config.yaml</code>).
+              </li>
+              <li>
+                <strong>Indexing:</strong> Sorts by Player and End Date,
+                assigning a match index.
+              </li>
+            </ul>
+          </li>
+          <li>
+            <strong>Exponential Decay Weighting:</strong> Applies weights using
+            <code>exp(-decay_rate * match_index)</code> (with
+            <code>decay_rate</code> specified in <code>config.yaml</code>) to
+            emphasize recent performances.
+          </li>
+          <li>
+            <strong>Exponentially Weighted Moving Average (EWMA):</strong>
+            Computes the EWMA for each performance metric using the decay
+            weights.
+          </li>
+          <li>
+            <strong>Normalization:</strong> Normalizes EWMA values to a 0–100
+            scale using percentile ranking, reflecting relative performance.
+          </li>
+          <li>
+            <strong>Composite Scores:</strong> Calculates:
+            <ul>
+              <li>
+                <strong>Batting Form:</strong> A weighted sum of normalized
+                metrics (e.g., runs: 0.35, average: 0.25, strike rate: 0.2).
+              </li>
+              <li>
+                <strong>Bowling Form:</strong> A weighted sum (e.g., wickets:
+                0.6, average: 0.2, economy: 0.2) with inverted average and
+                economy (i.e., using <code>100 - value</code>).
+              </li>
+              <li>
+                <strong>Fielding Form:</strong> A weighted sum (e.g., catches:
+                0.5, stumpings: 0.3).
+              </li>
+            </ul>
+          </li>
+        </ul>
+        <p><strong>Example Output:</strong></p>
+        <div class="output-table-wrapper">
+          <table class="output-table">
+            <thead>
+              <tr>
+                <th>Player</th>
+                <th>Batting Form</th>
+                <th>Bowling Form</th>
+                <th>Fielding Form</th>
+                <th>Credits</th>
+                <th>Player Type</th>
+                <th>Team</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Kane Williamson</td>
+                <td>85.2</td>
+                <td>10.5</td>
+                <td>45.3</td>
+                <td>9.0</td>
+                <td>BAT</td>
+                <td>NZ</td>
+              </tr>
+              <tr>
+                <td>Shaheen Afridi</td>
+                <td>20.1</td>
+                <td>90.7</td>
+                <td>30.2</td>
+                <td>9.0</td>
+                <td>BOWL</td>
+                <td>PAK</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+      <details>
+        <summary>2. Fantasy Team Optimizer (<code>buildteam.py</code>)</summary>
+        <p>
+          This module selects an optimal 11-player team based on form scores and
+          roster data.
+        </p>
+        <h4>Process Overview:</h4>
+        <ul>
+          <li>
+            <strong>Data Loading:</strong>
+            <ul>
+              <li>
+                <strong>Evaluation Data:</strong> Loads player form scores,
+                combining recent and overall performance (e.g., 0.6 recent, 0.4
+                overall).
+              </li>
+              <li>
+                <strong>Roster Data:</strong> Loads
+                <code>SquadPlayerNames.csv</code> with columns such as Credits,
+                Player Type, Player Name, Team, and IsPlaying.
+              </li>
+            </ul>
+          </li>
+          <li>
+            <strong>Filtering and Merging:</strong>
+            <ul>
+              <li>Filters the roster to include only "PLAYING" players.</li>
+              <li>
+                Merges the roster data with form scores based on Player and
+                Player Type.
+              </li>
+              <li>
+                Standardizes roles (e.g., converting <code>ALL</code> to All
+                Rounder, <code>BAT</code> to Batsmen).
+              </li>
+            </ul>
+          </li>
+          <li>
+            <strong>Score Calculation:</strong> Computes role-based scores:
+            <ul>
+              <li>
+                <strong>Batsmen:</strong>
+                <code>batter_weight * Batting Form</code>
+              </li>
+              <li>
+                <strong>Bowlers:</strong>
+                <code>bowler_weight * Bowling Form</code>
+              </li>
+              <li>
+                <strong>All Rounders:</strong> A weighted mix of Batting and
+                Bowling Forms, where:
+                <pre><code>batting_ratio = Batting Form / (Batting Form + Bowling Form)
+allrounder_score = allrounder_weight * (batting_ratio * Batting Form + (1 - batting_ratio) * Bowling Form)
+</code></pre>
+              </li>
+              <li>
+                <strong>Wicket Keepers:</strong>
+                <code>keeper_weight * Batting Form</code>
+              </li>
+            </ul>
+          </li>
+          <li>
+            <strong>Optimization with PuLP:</strong> Uses linear programming
+            (via PuLP) to maximize the total team score with the following
+            constraints:
+            <ul>
+              <li>Exactly 11 players.</li>
+              <li>
+                Minimum role requirements:
+                <ul>
+                  <li>≥ 4 Batsmen.</li>
+                  <li>≥ 5 bowling contributors (Bowlers or All Rounders).</li>
+                  <li>≥ 3 Bowlers.</li>
+                  <li>≥ 1 Wicket Keeper.</li>
+                  <li>
+                    Exactly 3 All Rounders (selected based on best performance
+                    in batting, bowling, and average form).
+                  </li>
+                </ul>
+              </li>
+              <li>
+                Incorporates leadership designations:
+                <ul>
+                  <li><strong>Captain:</strong> 2x multiplier on score.</li>
+                  <li>
+                    <strong>Vice-Captain:</strong> 1.5x multiplier on score.
+                  </li>
+                </ul>
+              </li>
+            </ul>
+          </li>
+        </ul>
+        <p><strong>Example Output:</strong></p>
+        <div class="output-table-wrapper">
+          <table class="output-table">
+            <thead>
+              <tr>
+                <th>Score</th>
+                <th>Role</th>
+                <th>Player</th>
+                <th>Position</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>93.66</td>
+                <td>Batsmen</td>
+                <td>Daryl Mitchell</td>
+                <td>Captain</td>
+              </tr>
+              <tr>
+                <td>80.18</td>
+                <td>Batsmen</td>
+                <td>Fakhar Zaman</td>
+                <td>Vice Captain</td>
+              </tr>
+              <tr>
+                <td>85.20</td>
+                <td>Batsmen</td>
+                <td>Kane Williamson</td>
+                <td>Player</td>
+              </tr>
+              <tr>
+                <td>76.07</td>
+                <td>Bowler</td>
+                <td>Haris Rauf</td>
+                <td>Player</td>
+              </tr>
+              <tr>
+                <td>74.66</td>
+                <td>Batsmen</td>
+                <td>Babar Azam</td>
+                <td>Player</td>
+              </tr>
+              <tr>
+                <td>90.70</td>
+                <td>Bowler</td>
+                <td>Shaheen Afridi</td>
+                <td>Player</td>
+              </tr>
+              <tr>
+                <td>70.75</td>
+                <td>All Rounder</td>
+                <td>Glenn Phillips</td>
+                <td>Player</td>
+              </tr>
+              <tr>
+                <td>68.82</td>
+                <td>Wicket Keeper</td>
+                <td>Mohammad Rizwan</td>
+                <td>Player</td>
+              </tr>
+              <tr>
+                <td>65.30</td>
+                <td>All Rounder</td>
+                <td>Michael Bracewell</td>
+                <td>Player</td>
+              </tr>
+              <tr>
+                <td>70.61</td>
+                <td>Bowler</td>
+                <td>Abrar Ahmed</td>
+                <td>Player</td>
+              </tr>
+              <tr>
+                <td>60.40</td>
+                <td>All Rounder</td>
+                <td>Agha Salman</td>
+                <td>Player</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <h2 id="docker-commands">Docker Commands</h2>
+      <h3>Prerequisites</h3>
+      <p>
+        Ensure you have the following files in your
+        <code>~/Downloads</code> folder:
+      </p>
+      <ul>
+        <li><code>sinister6.csv</code> (player form data)</li>
+        <li><code>SquadPlayerNames.csv</code> (roster data)</li>
+      </ul>
+      <h3>Commands</h3>
+      <ol>
+        <li>
+          <strong>Load the Model:</strong>
+          <pre><code>docker load -i sinister6.tar</code></pre>
+        </li>
+        <li>
+          <strong>Run the Container:</strong>
+          <pre><code>touch ~/Downloads/sinister6.csv
+docker run --rm \
+  -v ~/Downloads/SquadPlayerNames.csv:/app/data/SquadPlayerNames.csv \
+  -v ~/Downloads/sinister6.csv:/app/sinister6.csv \
+  sinister6</code></pre>
+        </li>
+      </ol>
+
+      <h2 id="input-data-format">Input Data Format</h2>
+      <p>
+        <strong>Roster CSV Example (<code>SquadPlayerNames.csv</code>):</strong>
+      </p>
+      <div class="output-table-wrapper">
+        <table class="output-table">
+          <thead>
+            <tr>
+              <th>Credits</th>
+              <th>Player Type</th>
+              <th>Player Name</th>
+              <th>Team</th>
+              <th>IsPlaying</th>
+              <th>lineupOrder</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>7.5</td>
+              <td>ALL</td>
+              <td>Michael Bracewell</td>
+              <td>NZ</td>
+              <td>PLAYING</td>
+              <td>7</td>
+            </tr>
+            <tr>
+              <td>8.5</td>
+              <td>BAT</td>
+              <td>Babar Azam</td>
+              <td>PAK</td>
+              <td>PLAYING</td>
+              <td>2</td>
+            </tr>
+            <tr>
+              <td>9</td>
+              <td>BOWL</td>
+              <td>Shaheen Afridi</td>
+              <td>PAK</td>
+              <td>PLAYING</td>
+              <td>8</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="output-file-format">Output File Format</h2>
+      <p><strong>Team Selection Output Example:</strong></p>
+      <div class="output-table-wrapper">
+        <table class="output-table">
+          <thead>
+            <tr>
+              <th>Player</th>
+              <th>Role</th>
+              <th>Team</th>
+              <th>Position</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Daryl Mitchell</td>
+              <td>Batsmen</td>
+              <td>NZ</td>
+              <td>Captain</td>
+            </tr>
+            <tr>
+              <td>Fakhar Zaman</td>
+              <td>Batsmen</td>
+              <td>PAK</td>
+              <td>Vice Captain</td>
+            </tr>
+            <tr>
+              <td>Babar Azam</td>
+              <td>Batsmen</td>
+              <td>PAK</td>
+              <td>Player</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="conclusion">Conclusion</h2>
+      <ul>
+        <li>
+          <strong>Player Form Calculation:</strong> Cleans, merges, and
+          processes match data to produce normalized form scores using
+          exponential decay.
+        </li>
+        <li>
+          <strong>Fantasy Team Optimizer:</strong> Combines form scores with
+          roster data, computes role-based scores, and optimizes team selection
+          with PuLP, ensuring balanced team composition and leadership roles.
+        </li>
+      </ul>
+
+      <h2 id="explanation">Explanation of How the Model Works</h2>
+      <p>
+        The Fantasy Team Optimization System operates in two primary stages:
+      </p>
+      <h3>1. Player Form Calculation (<code>playerform.py</code>)</h3>
+      <ul>
+        <li>
+          <strong>Input Data:</strong> CSV files for batting, bowling, and
+          fielding statistics, plus a squad CSV for player metadata.
+        </li>
+        <li>
+          <strong>Process:</strong>
+          <ul>
+            <li>
+              <strong>Load and Clean:</strong> Reads CSV files, drops empty
+              columns, and prefixes columns for clarity.
+            </li>
+            <li>
+              <strong>Merge:</strong> Combines datasets on <code>Player</code>,
+              <code>Team</code>, <code>Start Date</code>, <code>End Date</code>,
+              and <code>Mat</code>.
+            </li>
+            <li>
+              <strong>Filter:</strong> Limits data to squad players and recent
+              matches (e.g., last 6 months).
+            </li>
+            <li>
+              <strong>Weighting:</strong> Applies an exponential decay (<code
+                >exp(-decay_rate * match_index)</code
+              >) to emphasize recent performances.
+            </li>
+            <li>
+              <strong>EWMA:</strong> Computes exponentially weighted moving
+              averages for performance metrics.
+            </li>
+            <li>
+              <strong>Normalization:</strong> Scales EWMA values to a 0–100
+              range using percentile ranking.
+            </li>
+            <li>
+              <strong>Composite Scores:</strong> Combines metrics into
+              <code>Batting Form</code>, <code>Bowling Form</code>, and
+              <code>Fielding Form</code>.
+            </li>
+          </ul>
+        </li>
+        <li>
+          <strong>Output:</strong> A CSV file with form scores and player
+          metadata (e.g.,
+          <code>Kane Williamson,85.2,10.5,45.3,9.0,BAT,NZ</code>).
+        </li>
+      </ul>
+      <h3>2. Fantasy Team Optimizer (<code>buildteam.py</code>)</h3>
+      <ul>
+        <li>
+          <strong>Input Data:</strong> Form scores CSV and a roster CSV (e.g.,
+          <code>SquadPlayerNames.csv</code>) with player status.
+        </li>
+        <li>
+          <strong>Process:</strong>
+          <ul>
+            <li>
+              <strong>Load Data:</strong> Merges recent and overall form scores
+              and loads the roster.
+            </li>
+            <li>
+              <strong>Filter and Merge:</strong> Retains only "PLAYING" players
+              and standardizes roles.
+            </li>
+            <li>
+              <strong>Score Calculation:</strong> Assigns scores based on role:
+              <ul>
+                <li><strong>Batsmen:</strong> Weighted Batting Form.</li>
+                <li><strong>Bowlers:</strong> Weighted Bowling Form.</li>
+                <li>
+                  <strong>All Rounders:</strong> Weighted mix of Batting and
+                  Bowling Forms.
+                </li>
+                <li><strong>Wicket Keepers:</strong> Weighted Batting Form.</li>
+              </ul>
+            </li>
+            <li>
+              <strong>Optimization:</strong> Uses PuLP to maximize total score
+              with constraints on team composition and leadership designations.
+            </li>
+          </ul>
+        </li>
+        <li>
+          <strong>Output:</strong> An optimized team list with roles and
+          designations (e.g., Captain, Vice Captain).
+        </li>
+      </ul>
+      <h3>Integration</h3>
+      <ul>
+        <li><code>playerform.py</code> generates the form scores.</li>
+        <li>
+          <code>buildteam.py</code> uses these scores to optimize team
+          selection.
+        </li>
+        <li>
+          Configuration (e.g., file paths, weights) is managed via
+          <code>config.yaml</code>.
+        </li>
+      </ul>
+      <p>
+        This two-stage process ensures a robust and strategic approach to
+        fantasy team selection, blending historical performance with current
+        form data.
+      </p>
+      <p><em>Happy team building!</em></p>
+    </main>
+    <button id="theme-toggle" aria-label="Toggle theme">
+      <svg
+        class="sun-icon"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+      >
+        <path
+          d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.591 1.59a.75.75 0 001.06 1.061l1.591-1.59zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.697 7.757a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 00-1.061 1.06l1.59 1.591z"
+        />
+      </svg>
+      <svg
+        class="moon-icon"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        style="display: none"
+      >
+        <path
+          d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z"
+        />
+      </svg>
+    </button>
+
+    <script>
+      const sidebar = document.getElementById('sidebar');
+      const toggleButton = document.getElementById('toggle-sidebar');
+      toggleButton.addEventListener('click', () => {
+        sidebar.classList.toggle('show');
+      });
+      document.querySelectorAll('#sidebar a').forEach((link) => {
+        link.addEventListener('click', () => {
+          if (window.innerWidth <= 768) {
+            sidebar.classList.remove('show');
+          }
+        });
+      });
+
+      // Theme toggle functionality
+      const themeToggle = document.getElementById('theme-toggle');
+      const sunIcon = document.querySelector('.sun-icon');
+      const moonIcon = document.querySelector('.moon-icon');
+
+      // Check for saved theme preference, otherwise use system preference
+      const getPreferredTheme = () => {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+          return savedTheme;
+        }
+        return window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light';
+      };
+
+      // Apply theme
+      const setTheme = (theme) => {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+
+        // Toggle icons
+        if (theme === 'dark') {
+          sunIcon.style.display = 'none';
+          moonIcon.style.display = 'block';
+        } else {
+          sunIcon.style.display = 'block';
+          moonIcon.style.display = 'none';
+        }
+      };
+
+      // Initial theme setup
+      setTheme(getPreferredTheme());
+
+      // Theme toggle click handler
+      themeToggle.addEventListener('click', () => {
+        const currentTheme =
+          document.documentElement.getAttribute('data-theme');
+        setTheme(currentTheme === 'dark' ? 'light' : 'dark');
+      });
+
+      // Listen for system theme changes
+      window
+        .matchMedia('(prefers-color-scheme: dark)')
+        .addEventListener('change', (e) => {
+          if (!localStorage.getItem('theme')) {
+            setTheme(e.matches ? 'dark' : 'light');
+          }
+        });
+    </script>
+  </body>
+</html>
